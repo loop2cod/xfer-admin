@@ -1,103 +1,215 @@
-import Image from "next/image";
+"use client"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb"
+import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, Eye, ArrowUpRight } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    const router = useRouter();
+    const stats = {
+    totalRevenue: 12450.5,
+    totalRequests: 1234,
+    pendingRequests: 12,
+    activeCustomers: 456,
+    todayRevenue: 850.25,
+    todayRequests: 45,
+  }
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const recentRequests = [
+    {
+      id: "REQ-001",
+      customer: "John Doe",
+      type: "crypto-to-fiat",
+      amount: "500.00",
+      status: "pending",
+      date: "2024-01-15T14:30:00Z",
+    },
+      {
+      id: "REQ-005",
+      customer: "John Doe",
+      type: "crypto-to-fiat",
+      amount: "500.00",
+      status: "pending",
+      date: "2024-01-15T14:30:00Z",
+    },
+      {
+      id: "REQ-004",
+      customer: "John Doe",
+      type: "crypto-to-fiat",
+      amount: "500.00",
+      status: "pending",
+      date: "2024-01-15T14:30:00Z",
+    },
+  ]
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-gray-600" />
+      case "pending":
+        return <Clock className="w-4 h-4 text-yellow-600" />
+      case "failed":
+        return <AlertTriangle className="w-4 h-4 text-red-600" />
+      default:
+        return null
+    }
+  }
+
+
+  return (
+      <>
+      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </header>
+      <div className="flex flex-1 flex-col gap-3 p-3 md:p-6 md:gap-6 pt-0">
+        <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+          {/* Revenue Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm md:text-xl font-medium md:font-semibold">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</div>
+              <p className="text-xs text-primary">+${stats.todayRevenue} from today</p>
+            </CardContent>
+          </Card>
+
+          {/* Transactions Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm md:text-xl font-medium md:font-semibold">Total Requests</CardTitle>
+              <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalRequests.toLocaleString()}</div>
+              <p className="text-xs text-primary">+{stats.todayRequests} today</p>
+            </CardContent>
+          </Card>
+
+          {/* Active Customers Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm md:text-xl font-medium md:font-semibold">Active Customers</CardTitle>
+              <Users className="h-4 w-4 md:h-6 md:w-6 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeCustomers}</div>
+              <p className="text-xs text-primary">Registered users</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid">
+          {/* Pending Transactions Alert */}
+          <Card className="col-span-4">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Pending Transfer Requests</CardTitle>
+                  <CardDescription>Transfer requests requiring your attention</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                {/* Container with fade-out effect */}
+                <div className="space-y-4 relative">
+                  {/* Show only up to 4 pending requests */}
+                  {recentRequests
+                    .filter((t) => t.status === "pending")
+                    .slice(0, 4)
+                    .map((transaction, index, array) => (
+                      <div
+                        key={transaction.id}
+                        className={`flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 ${
+                          index === array.length - 1 && array.length > 2 ? "opacity-80" : ""
+                        } ${
+                          index === array.length - 2 && array.length > 3 ? "opacity-90" : ""
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {getStatusIcon(transaction.status)}
+                          <div>
+                            <p className="font-medium text-gray-900">{transaction.id}</p>
+                            <p className="text-sm text-gray-600">{transaction.customer}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${transaction.amount}</p>
+                          <p className="text-sm text-gray-600 capitalize">{transaction.type.replace("-", " to ")}</p>
+                        </div>
+                      </div>
+                    ))}
+                  
+                  {/* Gradient overlay for fade effect */}
+                  {recentRequests.filter(t => t.status === "pending").length > 2 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                  )}
+                </div>
+                
+                {/* Button positioned below the fade */}
+                <div className="mt-4">
+                  <Button 
+                    onClick={() => router.push("/requests/pending")} 
+                    className="w-full bg-gray-900 hover:bg-gray-800 relative z-10 cursor-pointer"
+                  >
+                    View All Pending Requests
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common administrative tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Button className="w-full gap-2 flex cursor-pointer">
+                  <Clock className="w-4 h-4 md:w-6 h-6" />
+                  <span className="text-xs md:text-sm">Process Pending</span>
+                </Button>
+                <Button className="w-full gap-2 flex cursor-pointer">
+                  <Users className="w-4 h-4 md:w-6 h-6" />
+                  <span className="text-xs md:text-sm">Manage Customers</span>
+                </Button>
+                <Button className="w-full gap-2 flex cursor-pointer">
+                  <DollarSign className="w-4 h-4 md:w-6 h-6" />
+                  <span className="text-xs md:text-sm">Financial Reports</span>
+                </Button>
+                <Button className="w-full gap-2 flex cursor-pointer">
+                  <TrendingUp className="w-4 h-4 md:w-6 h-6" />
+                  <span className="text-xs md:text-sm">System Settings</span>
+                </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

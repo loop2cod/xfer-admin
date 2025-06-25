@@ -35,9 +35,10 @@ import {
   X,
   Loader2,
 } from "lucide-react"
+import { useParams } from "next/navigation"
 
 interface AdminTransferRequest {
-  id: string
+  id: any
   customer: {
     name: string
     email: string
@@ -66,7 +67,8 @@ interface AdminTransferRequest {
   userAgent: string
 }
 
-export default function AdminRequestDetailsPage({ params }: { params: { id: string } }) {
+export default function AdminRequestDetailsPage() {
+  const params = useParams()
   const [copied, setCopied] = useState<string | null>(null)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)

@@ -10,9 +10,7 @@ import {
   Shield,
   Users,
   Wallet,
-  Bell,
   LogOut,
-  Activity,
 } from "lucide-react"
 
 import {
@@ -51,18 +49,18 @@ const data = {
       items: [
         {
           title: "Pending Queue",
-          url: "/admin/requests/pending",
+          url: "/requests/pending",
           icon: CreditCard,
           badge: "12", // Dynamic pending count
         },
         {
           title: "All Requests",
-          url: "/admin/requests",
+          url: "/requests",
           icon: FileText,
         },
         {
           title: "Failed Requests",
-          url: "/admin/requests/failed",
+          url: "/requests/failed",
           icon: Shield,
         },
       ],
@@ -72,17 +70,17 @@ const data = {
       items: [
         {
           title: "Customers",
-          url: "/admin/customers",
+          url: "/customers",
           icon: Users,
         },
         {
           title: "Wallets & Banks",
-          url: "/admin/wallets",
+          url: "/wallets",
           icon: Wallet,
         },
         {
           title: "Financial Reports",
-          url: "/admin/reports",
+          url: "/reports",
           icon: DollarSign,
         },
       ],
@@ -107,7 +105,7 @@ const data = {
       items: [
         {
           title: "Audit Logs",
-          url: "/admin/audit",
+          url: "/audit",
           icon: FileText,
         },
         // {

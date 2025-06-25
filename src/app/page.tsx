@@ -10,7 +10,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
-import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, Eye, ArrowUpRight } from "lucide-react"
+import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle,ArrowUpRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function Home() {

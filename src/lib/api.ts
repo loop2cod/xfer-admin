@@ -184,6 +184,17 @@ export interface TransferRequest {
   processed_by?: string;
   processing_notes?: string;
   notes?: string;
+  admin_remarks?: string;
+  internal_notes?: string;
+  status_history?: Array<{
+    from_status: string;
+    to_status: string;
+    changed_by: string;
+    changed_by_name: string;
+    timestamp: string;
+    remarks?: string;
+    internal_notes?: string;
+  }>;
   created_at: string;
   updated_at: string;
   completed_at?: string;
@@ -202,6 +213,8 @@ export interface TransferUpdateRequest {
   crypto_tx_hash?: string;
   confirmation_count?: number;
   processing_notes?: string;
+  admin_remarks?: string;
+  internal_notes?: string;
 }
 
 export interface TransferStats {

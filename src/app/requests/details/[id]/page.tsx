@@ -50,6 +50,7 @@ import {
 import { useParams } from "next/navigation"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { useAdminTransfer } from "@/context/AdminTransferContext"
+import { TransferRequest, StatusHistoryEntry } from "@/types"
 
 function AdminRequestDetailsPage() {
   const params = useParams()
@@ -71,7 +72,7 @@ function AdminRequestDetailsPage() {
     }
   }, [params.id])
 
-  const request = selectedTransfer
+  const request = selectedTransfer as TransferRequest | null
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -155,6 +156,8 @@ function AdminRequestDetailsPage() {
         return "bg-red-100 text-red-800"
       case "cancelled":
         return "bg-gray-100 text-gray-800"
+      case "refunded":
+        return "bg-pink-100 text-pink-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -613,21 +616,39 @@ function AdminRequestDetailsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {request.status_history.map((entry, index) => (
+            {request.status_history
+              .slice()
+              .reverse()
+              .map((entry, index) => (
               <div key={index} className="border-l-2 border-gray-200 pl-3 sm:pl-4 pb-2 sm:pb-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                   <div>
                     <p className="font-medium text-sm sm:text-base">
-                      {entry.from_status} → {entry.to_status}
+                      {entry.from_status ? `${entry.from_status} → ${entry.to_status}` : `Initial: ${entry.to_status}`}
                     </p>
                     <p className="text-xs text-gray-600">
-                      by {entry.changed_by_name} on {formatDate(entry.timestamp)}
+                      by {entry.changed_by_name || 'System'} on {formatDate(entry.timestamp)}
                     </p>
                   </div>
+                  <div className="flex gap-2">
+                    <Badge className={`${getStatusColor(entry.to_status)} text-xs`}>
+                      {entry.to_status}
+                    </Badge>
+                  </div>
                 </div>
-                {entry.remarks && (
+                {entry.message && (
                   <p className="text-xs sm:text-sm text-gray-700 mt-1">
-                    {entry.remarks}
+                    <strong>Message:</strong> {entry.message}
+                  </p>
+                )}
+                {entry.admin_remarks && (
+                  <p className="text-xs sm:text-sm text-blue-700 mt-1">
+                    <strong>Admin Remarks:</strong> {entry.admin_remarks}
+                  </p>
+                )}
+                {entry.internal_notes && (
+                  <p className="text-xs sm:text-sm text-orange-700 mt-1">
+                    <strong>Internal Notes:</strong> {entry.internal_notes}
                   </p>
                 )}
               </div>
@@ -641,7 +662,7 @@ function AdminRequestDetailsPage() {
 
       {/* Status Update Dialog */}
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-        <DialogContent className="sm:max-w-[5∏25px]">
+        <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
             <DialogTitle>Update Transfer Status</DialogTitle>
             <DialogDescription>
@@ -664,6 +685,7 @@ function AdminRequestDetailsPage() {
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
             </div>

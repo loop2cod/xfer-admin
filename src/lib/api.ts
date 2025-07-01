@@ -162,7 +162,7 @@ export interface TransferRequest {
   transfer_id: string;
   user_id: string;
   transfer_type: string;
-  type: string;
+  type_: string;
   amount: number;
   fee: number;
   fee_amount: number;

@@ -315,7 +315,7 @@ export default function TransferRequestTable({
                           </p>
                           <p className="text-xs text-gray-500 truncate">{transfer.user?.email || 'No email'}</p>
                           {transfer.user?.customer_id && (
-                            <p className="text-xs text-blue-600 font-medium">{transfer.user.customer_id}</p>
+                            <p className="text-xs text-gray-500 font-medium">{transfer.user.customer_id}</p>
                           )}
                         </div>
                       </TableCell>

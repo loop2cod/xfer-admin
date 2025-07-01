@@ -328,7 +328,7 @@ function AdminRequestDetailsPage() {
           <div>
             <p className="text-xs sm:text-sm text-gray-600">Transaction Type</p>
             <p className="font-medium text-sm sm:text-base capitalize">
-              {request?.type?.replace("-", " to ")}
+              {request?.type_}
             </p>
           </div>
           <div>
@@ -498,13 +498,19 @@ function AdminRequestDetailsPage() {
             Bank Account Details
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           {request.bank_accounts.map((account: any, index: number) => (
             <div key={index} className="border rounded-lg p-3 sm:p-4">
               <h4 className="font-medium text-sm sm:text-base mb-2">
                 Bank Account {index + 1}
               </h4>
-              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2">
+                  <div>
+                  <p className="text-xs sm:text-sm text-gray-600">Bank Name</p>
+                  <p className="font-medium text-sm sm:text-base">
+                    {account.bank_name || "N/A"}
+                  </p>
+                </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Account Name</p>
                   <p className="font-medium text-sm sm:text-base">
@@ -517,10 +523,10 @@ function AdminRequestDetailsPage() {
                     {account.account_number || "N/A"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm text-gray-600">Bank Name</p>
+                   <div>
+                  <p className="text-xs sm:text-sm text-gray-600">Routing Number</p>
                   <p className="font-medium text-sm sm:text-base">
-                    {account.bank_name || "N/A"}
+                    {account.routing_number || "N/A"}
                   </p>
                 </div>
                 <div>

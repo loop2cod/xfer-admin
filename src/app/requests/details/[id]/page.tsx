@@ -36,9 +36,11 @@ import {
   Loader2,
 } from "lucide-react"
 import { useParams } from "next/navigation"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 interface AdminTransferRequest {
   id: any
+  transfer_id: string
   customer: {
     name: string
     email: string
@@ -67,7 +69,7 @@ interface AdminTransferRequest {
   userAgent: string
 }
 
-export default function AdminRequestDetailsPage() {
+function AdminRequestDetailsPage() {
   const params = useParams()
   const [copied, setCopied] = useState<string | null>(null)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
@@ -101,6 +103,7 @@ export default function AdminRequestDetailsPage() {
     adminNotes: "Customer verified via phone call",
     ipAddress: "192.168.1.100",
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    transfer_id: "TXN-001",
   }
 
   const handleCopy = (text: string, type: string) => {
@@ -511,5 +514,14 @@ export default function AdminRequestDetailsPage() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+
+export default function AdminRequestDetailPage() {
+  return (
+    <ProtectedRoute requireSuperAdmin={true}>
+      <AdminRequestDetailsPage />
+    </ProtectedRoute>
   )
 }

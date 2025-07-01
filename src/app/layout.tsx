@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AdminSidebar } from "@/components/admin-sidebar";
+import { AuthProvider } from "@/context/AuthContext";
+import { AdminTransferProvider } from "@/context/AdminTransferContext";
+import { PendingCountProvider } from "@/context/PendingCountContext";
+import { AdminLayoutWrapper } from "@/components/AdminLayoutWrapper";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Crypto Transfer Platform",
-  description: "Crypto Transfer Platform",
+  title: "Admin Portal - Crypto Transfer Platform",
+  description: "Administrative dashboard for Crypto Transfer Platform",
 };
 
 export default function RootLayout({
@@ -29,10 +32,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-            <SidebarProvider>
-      <AdminSidebar />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+        <Toaster />
+        <AuthProvider>
+          <PendingCountProvider>
+            <AdminTransferProvider>
+                {children}
+            </AdminTransferProvider>
+          </PendingCountProvider>
+        </AuthProvider>
       </body>
     </html>
   );

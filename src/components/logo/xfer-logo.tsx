@@ -76,7 +76,7 @@ export default function XferLogo({
                 <animateTransform
                   attributeName="transform"
                   type="translate"
-                  values="0,0;-9,0;0,0"
+                  values="-50,0;-40,0;-40,0"
                   dur="2s"
                   repeatCount="indefinite"
                 />
@@ -96,7 +96,7 @@ export default function XferLogo({
                 <animateTransform
                   attributeName="transform"
                   type="translate"
-                  values="0,0;-9,0;0,0"
+                   values="50,0;40,0;40,0"
                   dur="2s"
                   repeatCount="indefinite"
                 />
@@ -115,7 +115,7 @@ export default function XferLogo({
             fill={textColor || "url(#textGradient)"}
             filter="url(#glow)"
           >
-            Xfer
+            LETSND
             <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite" />
           </text>
 

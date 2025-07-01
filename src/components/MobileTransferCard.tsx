@@ -90,6 +90,9 @@ export default function MobileTransferCard({
               {transfer.user ? `${transfer.user.first_name} ${transfer.user.last_name}` : 'Unknown User'}
             </p>
             <p className="text-xs text-gray-500">{transfer.user?.email || 'No email'}</p>
+            {transfer.user?.customer_id && (
+              <p className="text-xs text-blue-600 font-medium">{transfer.user.customer_id}</p>
+            )}
           </div>
 
           {/* Transfer Details */}

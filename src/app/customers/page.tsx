@@ -40,13 +40,14 @@ import {
   Users,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 interface Customer {
   id: string
   name: string
   email: string
   phone?: string
-  status: "active" | "suspended" | "pending"
+  status: "active" | "suspended"
   joinDate: string
   lastActivity: string
   totalRequests: number
@@ -54,13 +55,12 @@ interface Customer {
   completedRequests: number
   pendingRequests: number
   failedRequests: number
-  verificationStatus: "verified" | "pending" | "rejected"
   riskLevel: "low" | "medium" | "high"
   country?: string
   avatar?: string
 }
 
-export default function CustomersPage() {
+function CustomersPage() {
     const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
@@ -82,7 +82,6 @@ export default function CustomersPage() {
       completedRequests: 12,
       pendingRequests: 2,
       failedRequests: 1,
-      verificationStatus: "verified",
       riskLevel: "low",
       country: "United States",
     },
@@ -99,7 +98,6 @@ export default function CustomersPage() {
       completedRequests: 7,
       pendingRequests: 1,
       failedRequests: 0,
-      verificationStatus: "verified",
       riskLevel: "low",
       country: "Canada",
     },
@@ -115,7 +113,6 @@ export default function CustomersPage() {
       completedRequests: 1,
       pendingRequests: 0,
       failedRequests: 2,
-      verificationStatus: "rejected",
       riskLevel: "high",
       country: "United Kingdom",
     },
@@ -124,7 +121,7 @@ export default function CustomersPage() {
       name: "Sarah Wilson",
       email: "sarah@example.com",
       phone: "+1-555-0126",
-      status: "pending",
+      status: "active",
       joinDate: "2024-01-14T00:00:00Z",
       lastActivity: "2024-01-14T16:20:00Z",
       totalRequests: 1,
@@ -132,7 +129,6 @@ export default function CustomersPage() {
       completedRequests: 1,
       pendingRequests: 0,
       failedRequests: 0,
-      verificationStatus: "pending",
       riskLevel: "medium",
       country: "Australia",
     },
@@ -149,7 +145,6 @@ export default function CustomersPage() {
       completedRequests: 5,
       pendingRequests: 0,
       failedRequests: 0,
-      verificationStatus: "verified",
       riskLevel: "low",
       country: "Germany",
     },
@@ -162,9 +157,8 @@ export default function CustomersPage() {
       customer.email.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = filterStatus === "all" || customer.status === filterStatus
-    const matchesVerification = filterVerification === "all" || customer.verificationStatus === filterVerification
 
-    return matchesSearch && matchesStatus && matchesVerification
+    return matchesSearch && matchesStatus
   })
 
   const handleRefresh = async () => {
@@ -224,8 +218,6 @@ export default function CustomersPage() {
     total: customers.length,
     active: customers.filter((c) => c.status === "active").length,
     suspended: customers.filter((c) => c.status === "suspended").length,
-    pending: customers.filter((c) => c.status === "pending").length,
-    verified: customers.filter((c) => c.verificationStatus === "verified").length,
   }
 
   return (
@@ -237,7 +229,7 @@ export default function CustomersPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
@@ -267,7 +259,7 @@ export default function CustomersPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
@@ -283,18 +275,6 @@ export default function CustomersPage() {
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-gray-800">{stats.active}</div>
               <p className="text-sm text-gray-600">Active</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">{stats.verified}</div>
-              <p className="text-sm text-gray-600">Verified</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <p className="text-sm text-gray-600">Pending</p>
             </CardContent>
           </Card>
           <Card>
@@ -357,7 +337,6 @@ export default function CustomersPage() {
                 <TableRow>
                   <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Verification</TableHead>
                   <TableHead>Risk Level</TableHead>
                   <TableHead>Requests</TableHead>
                   <TableHead>Volume</TableHead>
@@ -388,11 +367,6 @@ export default function CustomersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(customer.status)}>{customer.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getVerificationColor(customer.verificationStatus)}>
-                        {customer.verificationStatus}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge className={getRiskColor(customer.riskLevel)}>{customer.riskLevel}</Badge>
@@ -467,5 +441,13 @@ export default function CustomersPage() {
         </Card>
       </div>
     </>
+  )
+}
+
+export default function CustomersListPage() {
+  return (
+    <ProtectedRoute>
+      <CustomersPage />
+    </ProtectedRoute>
   )
 }

@@ -182,11 +182,11 @@ function AdminRequestDetailsPage() {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+                  <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/admin/requests">Transfer Requests</BreadcrumbLink>
+                  <BreadcrumbLink href="/requests">Transfer Requests</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
@@ -215,7 +215,7 @@ function AdminRequestDetailsPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem className="hidden md:block">
@@ -443,7 +443,7 @@ function AdminRequestDetailsPage() {
             </div>
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Customer ID</p>
-              <p className="font-medium text-sm sm:text-base">{request.user.id}</p>
+              <p className="font-medium text-sm sm:text-base">{request.user.customer_id || request.user.id}</p>
             </div>
           </>
         ) : (
@@ -635,7 +635,7 @@ function AdminRequestDetailsPage() {
 
       {/* Status Update Dialog */}
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[5∏25px]">
           <DialogHeader>
             <DialogTitle>Update Transfer Status</DialogTitle>
             <DialogDescription>

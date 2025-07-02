@@ -92,6 +92,44 @@ export interface User {
   date_of_birth?: string;
   address?: string;
   verification_documents?: any[];
+  customer_id?: string;
+  total_transfers?: number;
+  total_volume?: number;
+  pending_transfers?: number;
+  completed_transfers?: number;
+  failed_transfers?: number;
+}
+
+export interface CustomerDetails extends User {
+  name: string;
+  status: "active" | "suspended" | "pending";
+  joinDate: string;
+  lastActivity: string;
+  verificationStatus: "verified" | "pending" | "rejected";
+  riskLevel: "low" | "medium" | "high";
+  avatar?: string;
+  totalRequests: number;
+  totalVolume: number;
+  completedRequests: number;
+  pendingRequests: number;
+  failedRequests: number;
+  averageRequestAmount: number;
+  lastRequestDate?: string;
+  notes: string[];
+  documents: {
+    id: string;
+    type: string;
+    status: "approved" | "pending" | "rejected";
+    uploadDate: string;
+  }[];
+}
+
+export interface UserNote {
+  id: string;
+  note: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
 }
 
 export interface UserFilters {
@@ -938,6 +976,47 @@ class ApiClient {
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Failed to update KYC status'
+      };
+    }
+  }
+
+  async getUserTransfers(userId: string, params?: {
+    skip?: number;
+    limit?: number;
+    type_filter?: string;
+    status_filter?: string;
+  }): Promise<ApiResponse<PaginatedTransfersResponse>> {
+    try {
+      const response = await this.client.get<ApiResponse<PaginatedTransfersResponse>>(`/users/admin/${userId}/transfers`, { params });
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to get user transfers'
+      };
+    }
+  }
+
+  async addUserNote(userId: string, note: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.client.post<ApiResponse<any>>(`/users/admin/${userId}/notes`, { note });
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to add user note'
+      };
+    }
+  }
+
+  async getUserNotes(userId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await this.client.get<ApiResponse<any[]>>(`/users/admin/${userId}/notes`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to get user notes'
       };
     }
   }

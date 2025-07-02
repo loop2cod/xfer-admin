@@ -63,13 +63,14 @@ interface Customer {
   status?: "active" | "suspended"
   joinDate?: string
   lastActivity?: string
-  totalRequests?: number
-  totalVolume?: number
-  completedRequests?: number
-  pendingRequests?: number
+  total_requests?: number
+  total_volume?: number
+  completed_requests?: number
+  pending_requests?: number
   failedRequests?: number
   riskLevel?: "low" | "medium" | "high"
   avatar?: string
+  customer_id?: string
 }
 
 function CustomersPage() {
@@ -108,7 +109,7 @@ function CustomersPage() {
         // Transform API data to match our interface
         const transformedCustomers = response.data.users.map((user: any) => ({
           ...user,
-          name: `${user.first_name} ${user.last_name}`,
+          name: `${user.first_name}`,
           status: user.is_active ? "active" : "suspended",
           joinDate: user.created_at,
           lastActivity: user.last_login || user.updated_at,
@@ -135,7 +136,7 @@ function CustomersPage() {
   }
 
   const filteredCustomers = customers.filter((customer) => {
-    const customerName = customer.name || `${customer.first_name} ${customer.last_name}`
+    const customerName = customer.name || `${customer.first_name}`
     const matchesSearch =
       customer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -298,10 +299,9 @@ function CustomersPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterVerification} onValueChange={setFilterVerification}>
+                {/* <Select value={filterVerification} onValueChange={setFilterVerification}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Verification" />
                   </SelectTrigger>
@@ -311,7 +311,7 @@ function CustomersPage() {
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
-                </Select>
+                </Select> */}
               </div>
             </div>
           </CardContent>
@@ -334,7 +334,7 @@ function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {filteredCustomers.map((customer) => {
-                  const customerName = customer.name || `${customer.first_name} ${customer.last_name}`
+                  const customerName = customer.name || `${customer.first_name}`
                   const customerStatus = customer.status || (customer.is_active ? "active" : "suspended")
                   const customerRisk = customer.riskLevel || "low"
                   const joinDate = customer.joinDate || customer.created_at
@@ -355,7 +355,7 @@ function CustomersPage() {
                           <div>
                             <p className="font-medium">{customerName}</p>
                             <p className="text-sm text-gray-500">{customer.email}</p>
-                            <p className="text-xs text-gray-400">{customer.id}</p>
+                            <p className="text-xs text-gray-400">{customer.customer_id}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -367,14 +367,14 @@ function CustomersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{customer.totalRequests || 0} total</p>
+                          <p className="font-medium">{customer.total_requests || 0} total</p>
                           <p className="text-gray-500">
-                            {customer.completedRequests || 0} completed, {customer.pendingRequests || 0} pending
+                            {customer.completed_requests || 0} completed, {customer.pending_requests|| 0} pending
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">${(customer.totalVolume || 0).toLocaleString()}</p>
+                        <p className="font-medium">${(customer.total_volume || 0).toLocaleString()}</p>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{new Date(joinDate).toLocaleDateString()}</p>
@@ -387,7 +387,7 @@ function CustomersPage() {
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                        <DropdownMenu>
+                        {/* <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm">
                               <MoreHorizontal className="w-4 h-4" />
@@ -416,7 +416,7 @@ function CustomersPage() {
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu> */}
                       </div>
                     </TableCell>
                   </TableRow>

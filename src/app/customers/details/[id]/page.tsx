@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,10 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import {
-  AlertTriangle,
   CheckCircle,
   Clock,
   TrendingUp,
@@ -38,161 +35,167 @@ import {
   FileText,
   Loader2,
   Eye,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import ProtectedRoute from "@/components/ProtectedRoute"
+import { apiClient, CustomerDetails, TransferRequest, UserNote } from "@/lib/api"
+import { useToast } from "@/hooks/useToast"
 
-interface CustomerDetails {
-  id: any
-  name: string
-  email: string
-  phone?: string
-  status: "active" | "suspended" | "pending"
-  joinDate: string
-  lastActivity: string
-  verificationStatus: "verified" | "pending" | "rejected"
-  riskLevel: "low" | "medium" | "high"
-  country?: string
-  address?: string
-  dateOfBirth?: string
-  avatar?: string
-  totalRequests: number
-  totalVolume: number
-  completedRequests: number
-  pendingRequests: number
-  failedRequests: number
-  averageRequestAmount: number
-  lastRequestDate?: string
-  notes: string[]
-  documents: {
-    id: string
-    type: string
-    status: "approved" | "pending" | "rejected"
-    uploadDate: string
-  }[]
-}
 
-interface TransferRequest {
-  id: string
-  type: "crypto-to-fiat" | "fiat-to-crypto"
-  amount: string
-  currency: string
-  status: "pending" | "completed" | "failed"
-  createdAt: string
-  completedAt?: string
-}
 
-export default function CustomerDetailsPage() {
+function CustomerDetailsPage() {
   const {id} = useParams()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [showSuspendDialog, setShowSuspendDialog] = useState(false)
   const [showActivateDialog, setShowActivateDialog] = useState(false)
-  const [showNoteDialog, setShowNoteDialog] = useState(false)
-  const [newNote, setNewNote] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [customer, setCustomer] = useState<CustomerDetails | null>(null)
+  const [transferHistory, setTransferHistory] = useState<TransferRequest[]>([])
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock customer data - in real app, fetch by ID
-  const customer: CustomerDetails = {
-    id: id,
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "+1-555-0123",
-    status: "active",
-    joinDate: "2024-01-01T00:00:00Z",
-    lastActivity: "2024-01-15T14:30:00Z",
-    verificationStatus: "verified",
-    riskLevel: "low",
-    country: "United States",
-    address: "123 Main St, New York, NY 10001",
-    dateOfBirth: "1990-05-15",
-    totalRequests: 15,
-    totalVolume: 7500.0,
-    completedRequests: 12,
-    pendingRequests: 2,
-    failedRequests: 1,
-    averageRequestAmount: 500.0,
-    lastRequestDate: "2024-01-15T14:30:00Z",
-    notes: [
-      "Customer verified via phone call - 2024-01-10",
-      "Requested higher transaction limits - 2024-01-05",
-      "Initial KYC documents approved - 2024-01-01",
-    ],
-    documents: [
-      {
-        id: "DOC-001",
-        type: "Government ID",
-        status: "approved",
-        uploadDate: "2024-01-01T00:00:00Z",
-      },
-      {
-        id: "DOC-002",
-        type: "Proof of Address",
-        status: "approved",
-        uploadDate: "2024-01-01T00:00:00Z",
-      },
-      {
-        id: "DOC-003",
-        type: "Bank Statement",
-        status: "pending",
-        uploadDate: "2024-01-14T00:00:00Z",
-      },
-    ],
+  useEffect(() => {
+    if (id) {
+      loadCustomerData()
+    }
+  }, [id])
+
+  const loadCustomerData = async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Load customer details
+      const customerResponse = await apiClient.getUserById(id as string)
+      if (customerResponse.success && customerResponse.data) {
+        const userData = customerResponse.data
+        
+        // Transform user data to customer details format
+        const customerDetails: CustomerDetails = {
+          ...userData,
+          name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
+          status: userData.is_active ? "active" : "suspended",
+          joinDate: userData.created_at,
+          lastActivity: userData.last_login || userData.updated_at,
+          verificationStatus: userData.kyc_status === 'approved' ? 'verified' : 
+                             userData.kyc_status === 'rejected' ? 'rejected' : 'pending',
+          riskLevel: "low", // Default risk level - could be calculated based on transfer history
+          totalRequests: userData.total_transfers || 0,
+          totalVolume: userData.total_volume || 0,
+          completedRequests: userData.completed_transfers || 0,
+          pendingRequests: userData.pending_transfers || 0,
+          failedRequests: userData.failed_transfers || 0,
+          averageRequestAmount: userData.total_volume && userData.total_transfers ? 
+            userData.total_volume / userData.total_transfers : 0,
+          lastRequestDate: undefined, // Will be set from transfer history
+          notes: [], // Will be loaded separately
+          documents: userData.verification_documents || [] // KYC documents from user data
+        }
+        
+        setCustomer(customerDetails)
+        
+        // Load transfer history (don't fail if this fails)
+        try {
+          await loadTransferHistory(id as string)
+        } catch (error) {
+          console.error('Failed to load transfer history:', error)
+        }
+        
+      } else {
+        setError(customerResponse.error || 'Failed to load customer data')
+      }
+    } catch (error: any) {
+      setError(error.message || 'An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Mock transaction history
-  const transferHistory: TransferRequest[] = [
-    {
-      id: "REQ-001",
-      type: "crypto-to-fiat",
-      amount: "500.00",
-      currency: "USDT",
-      status: "completed",
-      createdAt: "2024-01-15T14:30:00Z",
-      completedAt: "2024-01-15T15:45:00Z",
-    },
-    {
-      id: "REQ-002",
-      type: "fiat-to-crypto",
-      amount: "1000.00",
-      currency: "USDT",
-      status: "pending",
-      createdAt: "2024-01-15T12:15:00Z",
-    },
-    {
-      id: "REQ-003",
-      type: "crypto-to-fiat",
-      amount: "250.00",
-      currency: "USDT",
-      status: "failed",
-      createdAt: "2024-01-13T16:45:00Z",
-    },
-  ]
+  const loadTransferHistory = async (userId: string) => {
+    try {
+      const response = await apiClient.getUserTransfers(userId, { limit: 50 })
+      if (response.success && response.data) {
+        setTransferHistory(response.data.transfers)
+        
+        // Update last request date from transfer history
+        const lastTransfer = response.data.transfers[0]
+        if (lastTransfer) {
+          setCustomer(prev => prev ? {
+            ...prev,
+            lastRequestDate: lastTransfer.created_at
+          } : null)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load transfer history:', error)
+    }
+  }
 
   const handleSuspend = async () => {
+    if (!customer) return
+    
     setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsProcessing(false)
-    setShowSuspendDialog(false)
-    // In real app, update customer status
+    try {
+      const response = await apiClient.updateUserStatus(customer.id, false)
+      if (response.success) {
+        setCustomer(prev => prev ? { ...prev, status: "suspended", is_active: false } : null)
+        toast({
+          title: "Success",
+          description: "Customer account has been suspended successfully.",
+        })
+        setShowSuspendDialog(false)
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to suspend customer account.",
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const handleActivate = async () => {
+    if (!customer) return
+    
     setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsProcessing(false)
-    setShowActivateDialog(false)
-    // In real app, update customer status
+    try {
+      const response = await apiClient.updateUserStatus(customer.id, true)
+      if (response.success) {
+        setCustomer(prev => prev ? { ...prev, status: "active", is_active: true } : null)
+        toast({
+          title: "Success",
+          description: "Customer account has been activated successfully.",
+        })
+        setShowActivateDialog(false)
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to activate customer account.",
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const handleAddNote = async () => {
-    if (!newNote.trim()) return
-    setIsProcessing(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsProcessing(false)
-    setNewNote("")
-    setShowNoteDialog(false)
-    // In real app, add note to customer
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -269,6 +272,88 @@ export default function CustomerDetailsPage() {
     })
   }
 
+  if (loading) {
+    return (
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="/customers">Customers</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Loading...</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 max-w-5xl">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="ml-2">Loading customer details...</span>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (error || !customer) {
+    return (
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="/customers">Customers</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Error</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 max-w-5xl">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center py-12">
+                <AlertTriangle className="w-8 h-8 text-red-500 mr-2" />
+                <div>
+                  <h3 className="text-lg font-semibold">Error Loading Customer</h3>
+                  <p className="text-gray-600">{error || 'Customer not found'}</p>
+                  <Button 
+                    onClick={() => loadCustomerData()} 
+                    className="mt-4"
+                    variant="outline"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -278,15 +363,15 @@ export default function CustomerDetailsPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin/customers">Customers</BreadcrumbLink>
+                <BreadcrumbLink href="/customers">Customers</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{customer.name}</BreadcrumbPage>
+                <BreadcrumbPage>{customer.customer_id || customer.id}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -311,12 +396,9 @@ export default function CustomerDetailsPage() {
                 <div>
                   <h1 className="text-2xl font-bold">{customer.name}</h1>
                   <p className="text-gray-600">{customer.email}</p>
-                  <p className="text-sm text-gray-500">{customer.id}</p>
+                  <p className="text-sm text-gray-500">{customer.customer_id}</p>
                   <div className="flex items-center space-x-2 mt-2">
                     <Badge className={getStatusColor(customer.status)}>{customer.status}</Badge>
-                    <Badge className={getVerificationColor(customer.verificationStatus)}>
-                      {customer.verificationStatus}
-                    </Badge>
                     <Badge className={getRiskColor(customer.riskLevel)}>Risk: {customer.riskLevel}</Badge>
                   </div>
                 </div>
@@ -414,45 +496,53 @@ export default function CustomerDetailsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transferHistory.map((request) => (
-                      <TableRow key={request.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            {getRequestStatusIcon(request.status)}
-                            <span className="font-medium">{request.id}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {request.type.replace("-", " to ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium">
-                            ${request.amount} {request.currency}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getRequestStatusColor(request.status)}>{request.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="text-sm">{formatDate(request.createdAt)}</p>
-                            {request.completedAt && (
-                              <p className="text-xs text-gray-500">Completed: {formatDate(request.completedAt)}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Link href={`/admin/requests/${request.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                          </Link>
+                    {transferHistory.length > 0 ? (
+                      transferHistory.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {getRequestStatusIcon(request.status)}
+                              <span className="font-medium">{request.transfer_id}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {(request.type_ || request.transfer_type || 'crypto-to-fiat').replace("-", " to ")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium">
+                              ${(Number(request.amount || 0)).toFixed(2)} {request.currency}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getRequestStatusColor(request.status)}>{request.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm">{formatDate(request.created_at)}</p>
+                              {request.completed_at && (
+                                <p className="text-xs text-gray-500">Completed: {formatDate(request.completed_at)}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Link href={`/requests/details/${request.id}`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          No transfer requests found
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -469,45 +559,33 @@ export default function CustomerDetailsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {customer.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium">{doc.type}</p>
-                          <p className="text-sm text-gray-500">Uploaded: {formatDate(doc.uploadDate)}</p>
+                  {customer.documents && customer.documents.length > 0 ? (
+                    customer.documents.map((doc, index) => (
+                      <div key={doc.id || index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="w-5 h-5 text-gray-500" />
+                          <div>
+                            <p className="font-medium">{doc.type || 'Document'}</p>
+                            <p className="text-sm text-gray-500">
+                              Uploaded: {doc.uploadDate ? formatDate(doc.uploadDate) : 'Unknown date'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getVerificationColor(doc.status || 'pending')}>{doc.status || 'pending'}</Badge>
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getVerificationColor(doc.status)}>{doc.status}</Badge>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">No KYC documents uploaded yet</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="notes" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2" />
-                  Admin Notes & Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {customer.notes.map((note, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm">{note}</p>
-                    </div>
-                  ))}
-                  {customer.notes.length === 0 && <p className="text-gray-500 text-center py-8">No notes available</p>}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -581,43 +659,14 @@ export default function CustomerDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Add Note Dialog */}
-      <Dialog open={showNoteDialog} onOpenChange={setShowNoteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Admin Note</DialogTitle>
-            <DialogDescription>Add a note about {customer.name} for future reference.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="note">Note</Label>
-              <Textarea
-                id="note"
-                placeholder="Enter your note here..."
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNoteDialog(false)} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddNote} disabled={isProcessing || !newNote.trim()}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Note"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
+  )
+}
+
+export default function CustomerDetailsPageWrapper() {
+  return (
+    <ProtectedRoute requireSuperAdmin={true}>
+      <CustomerDetailsPage />
+    </ProtectedRoute>
   )
 }

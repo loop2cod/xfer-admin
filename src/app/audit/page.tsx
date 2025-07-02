@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -19,41 +18,17 @@ import {
 } from "@/components/ui/breadcrumb"
 import {
   Search,
-  Download,
-  CalendarIcon,
-  User,
-  Settings,
-  Shield,
-  CreditCard,
-  Database,
-  FileText,
-  Clock,
-  AlertTriangle,
   RefreshCw,
   Filter,
   Activity,
+  FileText,
+  User,
+  CalendarIcon,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { apiClient } from "@/lib/api"
+import { apiClient, AuditLog } from "@/lib/api"
 import ProtectedRoute from "@/components/ProtectedRoute"
-
-interface AuditLog {
-  id: string
-  admin_id: string
-  action: string
-  resource_type: string
-  resource_id?: string
-  details?: any
-  ip_address?: string
-  user_agent?: string
-  created_at: string
-  admin?: {
-    id: string
-    first_name: string
-    last_name: string
-    email: string
-  }
-}
+import AuditLogTable from "@/components/AuditLogTable"
 
 interface AuditStats {
   total_logs: number
@@ -130,55 +105,14 @@ function AuditPage() {
     loadAuditLogs()
   }
 
-  const getActionColor = (action: string) => {
-    switch (action.toLowerCase()) {
-      case 'create':
-        return "bg-green-100 text-green-800"
-      case 'update':
-        return "bg-blue-100 text-blue-800"
-      case 'delete':
-        return "bg-red-100 text-red-800"
-      case 'approve':
-        return "bg-purple-100 text-purple-800"
-      case 'reject':
-        return "bg-orange-100 text-orange-800"
-      case 'login':
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
 
-  const getResourceTypeColor = (resourceType: string) => {
-    switch (resourceType.toLowerCase()) {
-      case 'transfer_request':
-        return "bg-blue-100 text-blue-800"
-      case 'user':
-        return "bg-green-100 text-green-800"
-      case 'admin':
-        return "bg-purple-100 text-purple-800"
-      case 'wallet':
-        return "bg-yellow-100 text-yellow-800"
-      case 'system_settings':
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const formatDetails = (details: any) => {
-    if (!details) return "No details"
-    if (typeof details === 'string') return details
-    return JSON.stringify(details, null, 2)
-  }
 
   const filteredLogs = logs.filter((log) => {
     const matchesSearch = searchTerm === "" ||
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.resource_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.admin?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.admin?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.admin?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      log.admin_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.activity_description?.toLowerCase().includes(searchTerm.toLowerCase())
 
     return matchesSearch
   })
@@ -276,7 +210,7 @@ function AuditPage() {
                     placeholder="Search by action, resource, or admin..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     className="pl-10"
                   />
                 </div>
@@ -295,19 +229,6 @@ function AuditPage() {
                   <SelectItem value="login">Login</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={selectedResourceType} onValueChange={setSelectedResourceType}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by resource" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Resources</SelectItem>
-                  <SelectItem value="transfer_request">Transfer Request</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="wallet">Wallet</SelectItem>
-                  <SelectItem value="system_settings">System Settings</SelectItem>
-                </SelectContent>
-              </Select>
               <Button onClick={handleSearch}>
                 <Search className="w-4 h-4 mr-2" />
                 Search
@@ -317,139 +238,31 @@ function AuditPage() {
         </Card>
 
         {/* Audit Logs Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Audit Trail
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading && (
-              <div className="text-center py-12">
-                <RefreshCw className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
-                <p className="text-gray-500">Loading audit logs...</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="text-center py-12">
-                <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading audit logs</h3>
-                <p className="text-gray-500 mb-4">{error}</p>
-                <Button onClick={loadAuditLogs} variant="outline">
-                  Try Again
-                </Button>
-              </div>
-            )}
-
-            {!loading && !error && (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead>IP Address</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLogs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell>
-                          <div className="text-sm">
-                            <p className="font-medium">
-                              {new Date(log.created_at).toLocaleDateString()}
-                            </p>
-                            <p className="text-gray-500">
-                              {new Date(log.created_at).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <p className="font-medium">
-                              {log.admin ? `${log.admin.first_name} ${log.admin.last_name}` : 'Unknown'}
-                            </p>
-                            <p className="text-gray-500">{log.admin?.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getActionColor(log.action)}>
-                            {log.action}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <Badge className={getResourceTypeColor(log.resource_type)} variant="outline">
-                              {log.resource_type}
-                            </Badge>
-                            {log.resource_id && (
-                              <p className="text-gray-500 mt-1">ID: {log.resource_id}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm max-w-xs">
-                            <pre className="whitespace-pre-wrap text-xs bg-gray-50 p-2 rounded">
-                              {formatDetails(log.details)}
-                            </pre>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <p className="font-mono">{log.ip_address || 'N/A'}</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-6 py-4 border-t">
-                    <div className="text-sm text-gray-500">
-                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} logs
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-sm text-gray-500">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {!loading && !error && filteredLogs.length === 0 && (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No audit logs found</h3>
-                <p className="text-gray-500">No logs match your current search and filter criteria.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <AuditLogTable
+          logs={filteredLogs}
+          isLoading={loading}
+          error={error}
+          totalCount={totalCount}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          hasNext={currentPage < totalPages}
+          hasPrev={currentPage > 1}
+          onRefresh={loadAuditLogs}
+          onPageChange={setCurrentPage}
+          onSearch={(searchTerm) => {
+            setSearchTerm(searchTerm)
+            // Trigger search when called
+            loadAuditLogs()
+          }}
+          onFilterChange={(filterType, filterValue) => {
+            if (filterType === "type") {
+              setSelectedResourceType(filterValue)
+            }
+            // Trigger filter when called
+            loadAuditLogs()
+          }}
+          showFilters={false} // We're using the existing filters above
+        />
       </div>
     </>
 )}

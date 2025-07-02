@@ -172,6 +172,11 @@ export interface AuditLog {
   ip_address?: string;
   user_agent?: string;
   created_at: string;
+  // New enhanced fields
+  type: string;
+  activity_description: string;
+  created_by: string;
+  reference_link?: string;
 }
 
 export interface FinancialReport {
@@ -586,7 +591,7 @@ class ApiClient {
 
   async updateAdmin(id: string, data: AdminUpdateRequest): Promise<ApiResponse<AdminProfile>> {
     try {
-      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/${id}`, data);
+      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}`, data);
       return response.data;
     } catch (error: any) {
       return {
@@ -598,7 +603,7 @@ class ApiClient {
 
   async updateAdminPermissions(id: string, permissions: Record<string, boolean>): Promise<ApiResponse<AdminProfile>> {
     try {
-      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/${id}/permissions`, { permissions });
+      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}/permissions`, { permissions });
       return response.data;
     } catch (error: any) {
       return {
@@ -610,7 +615,7 @@ class ApiClient {
 
   async toggleAdminStatus(id: string): Promise<ApiResponse<AdminProfile>> {
     try {
-      const response = await this.client.post<ApiResponse<AdminProfile>>(`/admin/${id}/toggle-status`);
+      const response = await this.client.post<ApiResponse<AdminProfile>>(`/admin/profile/${id}/toggle-status`);
       return response.data;
     } catch (error: any) {
       return {
@@ -622,7 +627,7 @@ class ApiClient {
 
   async deleteAdmin(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete<ApiResponse>(`/admin/${id}`);
+      const response = await this.client.delete<ApiResponse>(`/admin/profile/${id}`);
       return response.data;
     } catch (error: any) {
       return {

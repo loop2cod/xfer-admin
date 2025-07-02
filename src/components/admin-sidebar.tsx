@@ -109,13 +109,7 @@ const getMenuData = (hasPermission: (permission: string) => boolean, isSuperAdmi
           icon: UserCog,
           permission: "can_manage_admins",
           superAdminOnly: true,
-        },
-        {
-          title: "System Settings",
-          url: "/settings",
-          icon: Settings,
-          permission: "can_manage_system_settings",
-        },
+        }
       ],
     },
     {

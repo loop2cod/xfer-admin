@@ -360,81 +360,105 @@ function AdminUsersContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {admins.map((adminUser) => (
-                  <TableRow key={adminUser.id}>
-                    <TableCell className="font-medium">
-                      {adminUser.first_name} {adminUser.last_name}
-                      {adminUser.id === admin?.id && (
-                        <Badge variant="outline" className="ml-2">You</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{adminUser.email}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(adminUser.role)}>
-                        {formatRole(adminUser.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(adminUser.is_active)}
-                        <span className={adminUser.is_active ? 'text-green-600' : 'text-red-600'}>
-                          {adminUser.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                {admins.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <UserPlus className="h-8 w-8 text-muted-foreground" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">No admin users found</p>
+                          <p className="text-xs text-muted-foreground">
+                            Get started by creating your first admin user
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowCreateDialog(true)}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Add Admin User
+                        </Button>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {adminUser.last_login 
-                        ? new Date(adminUser.last_login).toLocaleDateString()
-                        : 'Never'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      {new Date(adminUser.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(adminUser)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit User
-                          </DropdownMenuItem>
-                          {adminUser.id !== admin?.id && (
-                            <>
-                              <DropdownMenuItem 
-                                onClick={() => handleToggleStatus(adminUser.id)}
-                              >
-                                {adminUser.is_active ? (
-                                  <>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="mr-2 h-4 w-4" />
-                                    Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteAdmin(adminUser.id, adminUser.email)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete User
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  admins.map((adminUser) => (
+                    <TableRow key={adminUser.id}>
+                      <TableCell className="font-medium">
+                        {adminUser.first_name} {adminUser.last_name}
+                        {adminUser.id === admin?.id && (
+                          <Badge variant="outline" className="ml-2">You</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{adminUser.email}</TableCell>
+                      <TableCell>
+                        <Badge className={getRoleColor(adminUser.role)}>
+                          {formatRole(adminUser.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(adminUser.is_active)}
+                          <span className={adminUser.is_active ? 'text-green-600' : 'text-red-600'}>
+                            {adminUser.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {adminUser.last_login
+                          ? new Date(adminUser.last_login).toLocaleDateString()
+                          : 'Never'
+                        }
+                      </TableCell>
+                      <TableCell>
+                        {new Date(adminUser.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditDialog(adminUser)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit User
+                            </DropdownMenuItem>
+                            {adminUser.id !== admin?.id && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleStatus(adminUser.id)}
+                                >
+                                  {adminUser.is_active ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" />
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                      Activate
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteAdmin(adminUser.id, adminUser.email)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete User
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

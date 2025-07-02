@@ -10,33 +10,57 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
-import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, ArrowUpRight, Loader2 } from "lucide-react"
+import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, ArrowUpRight, Loader2, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
-import apiClient, { DashboardStats } from "@/lib/api"
+import apiClient, { DashboardStats, TransferRequest } from "@/lib/api"
 
 function DashboardContent() {
   const router = useRouter();
   const { admin, hasPermission } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadDashboardStats();
+    loadDashboardData();
   }, []);
 
-  const loadDashboardStats = async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getDashboardStats();
-      
-      if (response.success && response.data) {
-        setStats(response.data);
+
+      // Load dashboard stats and recent pending transfers in parallel
+      const [statsResponse, transfersResponse] = await Promise.all([
+        apiClient.getDashboardStats(),
+        apiClient.getAllTransfers({
+          status_filter: 'pending',
+          limit: 4,
+          skip: 0
+        })
+      ]);
+
+      if (statsResponse.success && statsResponse.data) {
+        setStats(statsResponse.data);
       } else {
-        setError(response.error || 'Failed to load dashboard stats');
+        setError(statsResponse.error || 'Failed to load dashboard stats');
+      }
+
+      if (transfersResponse.success && transfersResponse.data) {
+        // Transform the transfer data to match the expected format
+        const transformedRequests = transfersResponse.data.transfers.map(transfer => ({
+          id: transfer.id,
+          transfer_id: transfer.transfer_id,
+          customer: transfer.user ? `${transfer.user.first_name}` : 'Unknown User',
+          type: transfer.type_,
+          amount: transfer.amount.toString(),
+          status: transfer.status,
+          date: transfer.created_at,
+        }));
+        setRecentRequests(transformedRequests);
       }
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
@@ -44,34 +68,6 @@ function DashboardContent() {
       setLoading(false);
     }
   };
-
-  // Mock recent requests - in real app this would come from API
-  const recentRequests = [
-    {
-      id: "REQ-001",
-      customer: "John Doe",
-      type: "crypto-to-fiat",
-      amount: "500.00",
-      status: "pending",
-      date: "2024-01-15T14:30:00Z",
-    },
-    {
-      id: "REQ-005",
-      customer: "Jane Smith",
-      type: "fiat-to-crypto",
-      amount: "750.00",
-      status: "pending",
-      date: "2024-01-15T14:30:00Z",
-    },
-    {
-      id: "REQ-004",
-      customer: "Bob Wilson",
-      type: "crypto-to-crypto",
-      amount: "1200.00",
-      status: "pending",
-      date: "2024-01-15T14:30:00Z",
-    },
-  ];
 
   if (loading) {
     return (
@@ -86,16 +82,32 @@ function DashboardContent() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Dashboard</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={loadDashboardStats}>
-            Try Again
-          </Button>
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4 flex-1">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Dashboard</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={loadDashboardData}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -116,7 +128,7 @@ function DashboardContent() {
   return (
       <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
+        <div className="flex items-center gap-2 px-4 flex-1">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -126,6 +138,12 @@ function DashboardContent() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+        </div>
+        <div className="px-4">
+          <Button onClick={loadDashboardData} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-3 p-3 md:p-6 md:gap-6 pt-0">
@@ -188,8 +206,9 @@ function DashboardContent() {
                     .slice(0, 4)
                     .map((transaction, index, array) => (
                       <div
+                      onClick={() => router.push(`/requests/details/${transaction.id}`)}
                         key={transaction.id}
-                        className={`flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 ${
+                        className={`flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 cursor-pointer ${
                           index === array.length - 1 && array.length > 2 ? "opacity-80" : ""
                         } ${
                           index === array.length - 2 && array.length > 3 ? "opacity-90" : ""
@@ -198,12 +217,12 @@ function DashboardContent() {
                         <div className="flex items-center space-x-3">
                           {getStatusIcon(transaction.status)}
                           <div>
-                            <p className="font-medium text-gray-900">{transaction.id}</p>
+                            <p className="font-medium text-gray-900">{transaction.transfer_id}</p>
                             <p className="text-sm text-gray-600">{transaction.customer}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">${transaction.amount}</p>
+                          <p className="font-medium">${Number(transaction.amount || 0).toFixed(2)}</p>
                           <p className="text-sm text-gray-600 capitalize">{transaction.type.replace("-", " to ")}</p>
                         </div>
                       </div>

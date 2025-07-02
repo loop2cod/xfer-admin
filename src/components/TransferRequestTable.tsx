@@ -311,7 +311,7 @@ export default function TransferRequestTable({
                       <TableCell className="py-3">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">
-                            {transfer.user ? `${transfer.user.first_name} ${transfer.user.last_name}` : 'Unknown User'}
+                            {transfer.user ? `${transfer.user.first_name}` : 'Unknown User'}
                           </p>
                           <p className="text-xs text-gray-500 truncate">{transfer.user?.email || 'No email'}</p>
                           {transfer.user?.customer_id && (

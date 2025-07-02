@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,132 +38,120 @@ import {
   Mail,
   Phone,
   Users,
+  AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import ProtectedRoute from "@/components/ProtectedRoute"
+import { apiClient } from "@/lib/api"
 
 interface Customer {
   id: string
-  name: string
   email: string
+  first_name: string
+  last_name: string
   phone?: string
-  status: "active" | "suspended"
-  joinDate: string
-  lastActivity: string
-  totalRequests: number
-  totalVolume: number
-  completedRequests: number
-  pendingRequests: number
-  failedRequests: number
-  riskLevel: "low" | "medium" | "high"
+  is_active: boolean
+  kyc_status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  last_login?: string
   country?: string
+  date_of_birth?: string
+  address?: string
+  // Computed fields
+  name?: string
+  status?: "active" | "suspended"
+  joinDate?: string
+  lastActivity?: string
+  totalRequests?: number
+  totalVolume?: number
+  completedRequests?: number
+  pendingRequests?: number
+  failedRequests?: number
+  riskLevel?: "low" | "medium" | "high"
   avatar?: string
 }
 
 function CustomersPage() {
-    const router = useRouter()
+  const router = useRouter()
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterVerification, setFilterVerification] = useState("all")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const itemsPerPage = 10
 
-  // Mock customers data
-  const customers: Customer[] = [
-    {
-      id: "CUST-001",
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+1-555-0123",
-      status: "active",
-      joinDate: "2024-01-01T00:00:00Z",
-      lastActivity: "2024-01-15T14:30:00Z",
-      totalRequests: 15,
-      totalVolume: 7500.0,
-      completedRequests: 12,
-      pendingRequests: 2,
-      failedRequests: 1,
-      riskLevel: "low",
-      country: "United States",
-    },
-    {
-      id: "CUST-002",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+1-555-0124",
-      status: "active",
-      joinDate: "2024-01-05T00:00:00Z",
-      lastActivity: "2024-01-15T12:15:00Z",
-      totalRequests: 8,
-      totalVolume: 4200.0,
-      completedRequests: 7,
-      pendingRequests: 1,
-      failedRequests: 0,
-      riskLevel: "low",
-      country: "Canada",
-    },
-    {
-      id: "CUST-003",
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      status: "suspended",
-      joinDate: "2024-01-10T00:00:00Z",
-      lastActivity: "2024-01-13T16:45:00Z",
-      totalRequests: 3,
-      totalVolume: 1250.0,
-      completedRequests: 1,
-      pendingRequests: 0,
-      failedRequests: 2,
-      riskLevel: "high",
-      country: "United Kingdom",
-    },
-    {
-      id: "CUST-004",
-      name: "Sarah Wilson",
-      email: "sarah@example.com",
-      phone: "+1-555-0126",
-      status: "active",
-      joinDate: "2024-01-14T00:00:00Z",
-      lastActivity: "2024-01-14T16:20:00Z",
-      totalRequests: 1,
-      totalVolume: 750.0,
-      completedRequests: 1,
-      pendingRequests: 0,
-      failedRequests: 0,
-      riskLevel: "medium",
-      country: "Australia",
-    },
-    {
-      id: "CUST-005",
-      name: "David Brown",
-      email: "david@example.com",
-      phone: "+1-555-0127",
-      status: "active",
-      joinDate: "2024-01-12T00:00:00Z",
-      lastActivity: "2024-01-14T09:10:00Z",
-      totalRequests: 5,
-      totalVolume: 3750.0,
-      completedRequests: 5,
-      pendingRequests: 0,
-      failedRequests: 0,
-      riskLevel: "low",
-      country: "Germany",
-    },
-  ]
+  useEffect(() => {
+    loadCustomers()
+  }, [currentPage, searchTerm, filterStatus, filterVerification])
+
+  const loadCustomers = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = {
+        skip: (currentPage - 1) * itemsPerPage,
+        limit: itemsPerPage,
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterStatus !== "all" && { is_active: filterStatus === "active" }),
+        ...(filterVerification !== "all" && { kyc_status: filterVerification }),
+      }
+
+      const response = await apiClient.getAllUsers(params)
+
+      if (response.success && response.data) {
+        // Transform API data to match our interface
+        const transformedCustomers = response.data.users.map((user: any) => ({
+          ...user,
+          name: `${user.first_name} ${user.last_name}`,
+          status: user.is_active ? "active" : "suspended",
+          joinDate: user.created_at,
+          lastActivity: user.last_login || user.updated_at,
+          // These would come from additional API calls or be included in the response
+          totalRequests: 0,
+          totalVolume: 0,
+          completedRequests: 0,
+          pendingRequests: 0,
+          failedRequests: 0,
+          riskLevel: "low" as const
+        }))
+
+        setCustomers(transformedCustomers)
+        setTotalCount(response.data.total_count)
+        setTotalPages(response.data.total_pages)
+      } else {
+        setError(response.error || 'Failed to load customers')
+      }
+    } catch (error: any) {
+      setError(error.message || 'An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredCustomers = customers.filter((customer) => {
+    const customerName = customer.name || `${customer.first_name} ${customer.last_name}`
     const matchesSearch =
       customer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesStatus = filterStatus === "all" || customer.status === filterStatus
+    const customerStatus = customer.status || (customer.is_active ? "active" : "suspended")
+    const matchesStatus = filterStatus === "all" || customerStatus === filterStatus
 
-    return matchesSearch && matchesStatus
+    const matchesVerification = filterVerification === "all" || customer.kyc_status === filterVerification
+
+    return matchesSearch && matchesStatus && matchesVerification
   })
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await loadCustomers()
     setIsRefreshing(false)
   }
 
@@ -345,46 +333,52 @@ function CustomersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
-                          <AvatarFallback className="bg-gray-100 text-gray-600">
-                            {customer.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{customer.name}</p>
-                          <p className="text-sm text-gray-500">{customer.email}</p>
-                          <p className="text-xs text-gray-400">{customer.id}</p>
+                {filteredCustomers.map((customer) => {
+                  const customerName = customer.name || `${customer.first_name} ${customer.last_name}`
+                  const customerStatus = customer.status || (customer.is_active ? "active" : "suspended")
+                  const customerRisk = customer.riskLevel || "low"
+                  const joinDate = customer.joinDate || customer.created_at
+
+                  return (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customerName} />
+                            <AvatarFallback className="bg-gray-100 text-gray-600">
+                              {customerName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{customerName}</p>
+                            <p className="text-sm text-gray-500">{customer.email}</p>
+                            <p className="text-xs text-gray-400">{customer.id}</p>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(customer.status)}>{customer.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getRiskColor(customer.riskLevel)}>{customer.riskLevel}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p className="font-medium">{customer.totalRequests} total</p>
-                        <p className="text-gray-500">
-                          {customer.completedRequests} completed, {customer.pendingRequests} pending
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium">${customer.totalVolume.toLocaleString()}</p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm">{formatDate(customer.joinDate)}</p>
-                    </TableCell>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(customerStatus)}>{customerStatus}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getRiskColor(customerRisk)}>{customerRisk}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p className="font-medium">{customer.totalRequests || 0} total</p>
+                          <p className="text-gray-500">
+                            {customer.completedRequests || 0} completed, {customer.pendingRequests || 0} pending
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">${(customer.totalVolume || 0).toLocaleString()}</p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm">{new Date(joinDate).toLocaleDateString()}</p>
+                      </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                           <Button onClick={() => {
@@ -426,15 +420,64 @@ function CustomersPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
 
-            {filteredCustomers.length === 0 && (
+            {loading && (
+              <div className="text-center py-12">
+                <RefreshCw className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
+                <p className="text-gray-500">Loading customers...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-center py-12">
+                <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading customers</h3>
+                <p className="text-gray-500 mb-4">{error}</p>
+                <Button onClick={loadCustomers} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            )}
+
+            {!loading && !error && filteredCustomers.length === 0 && (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
                 <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && !error && totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t">
+                <div className="text-sm text-gray-500">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} customers
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-gray-500">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

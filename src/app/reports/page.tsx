@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DollarSign, TrendingUp, CreditCard, BarChart3, Download, RefreshCw, ArrowUpRight } from "lucide-react"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 // Mock chart component - in real app, use recharts or similar
 function SimpleChart({ data, type = "line" }: { data: any[]; type?: "line" | "bar" | "pie" }) {
@@ -31,7 +32,7 @@ function SimpleChart({ data, type = "line" }: { data: any[]; type?: "line" | "ba
   )
 }
 
-export default function FinancialReportsPage() {
+function FinancialReportsPage() {
   // const [dateRange, setDateRange] = useState<DateRange | undefined>({
   //   from: addDays(new Date(), -30),
   //   to: new Date(),
@@ -108,7 +109,7 @@ export default function FinancialReportsPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
@@ -684,5 +685,13 @@ export default function FinancialReportsPage() {
         </Tabs>
       </div>
     </>
+  )
+}
+
+export default function FinancialReportPage() {
+  return (
+    <ProtectedRoute>
+      <FinancialReportsPage />
+    </ProtectedRoute>
   )
 }

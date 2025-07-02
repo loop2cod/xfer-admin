@@ -326,8 +326,8 @@ function AdminRequestDetailsPage() {
           Transfer Request Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <CardContent className="space-y-2">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2">
           <div>
             <p className="text-xs sm:text-sm text-gray-600">Transaction Type</p>
             <p className="font-medium text-sm sm:text-base capitalize">
@@ -366,7 +366,7 @@ function AdminRequestDetailsPage() {
 
         <Separator className="my-2 sm:my-3" />
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div>
             <p className="text-xs sm:text-sm text-gray-600">Created At</p>
             <p className="font-medium text-sm sm:text-base">
@@ -457,16 +457,6 @@ function AdminRequestDetailsPage() {
             </p>
           </div>
         )}
-
-        <div>
-          <p className="text-xs sm:text-sm text-gray-600">Transfer ID</p>
-          <p className="font-medium text-sm sm:text-base">{request.transfer_id}</p>
-        </div>
-
-        <div>
-          <p className="text-xs sm:text-sm text-gray-600">User ID</p>
-          <p className="font-medium text-sm sm:text-base">{request.user_id}</p>
-        </div>
 
         {(request.admin_remarks || request.processing_notes) && (
           <>

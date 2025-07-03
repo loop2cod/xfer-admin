@@ -383,7 +383,8 @@ class ApiClient {
   private baseURL: string;
 
   constructor(baseURL?: string) {
-    this.baseURL = baseURL || process.env.NEXT_PUBLIC_API_URL || 'https://server.letsnd.com/api/v1';
+    // this.baseURL = 'https://server.letsnd.com/api/v1' || baseURL || process.env.NEXT_PUBLIC_API_URL;
+    this.baseURL = 'https://server.letsnd.com/api/v1'
     
     this.client = axios.create({
       baseURL: this.baseURL,

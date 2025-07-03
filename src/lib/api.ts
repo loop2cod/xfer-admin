@@ -1057,7 +1057,7 @@ export const getAuditLogs = async (params?: {
   end_date?: string;
 }): Promise<ApiResponse<{ logs: AuditLog[]; total: number }>> => {
   try {
-    const response = await client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin/audit-logs', {
+    const response = await client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin-audit-logs', {
       params
     });
     return response.data;
@@ -1081,7 +1081,7 @@ export const getAuditStats = async (): Promise<ApiResponse<{
       unique_admins: number;
       actions_today: number;
       most_common_action: string;
-    }>>('/admin/audit-logs/stats');
+    }>>('/admin-audit-logs/stats');
     return response.data;
   } catch (error: any) {
     return {

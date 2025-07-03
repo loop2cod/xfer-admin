@@ -140,12 +140,12 @@ function AuditPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Audit Logs</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Audit Logs</h1>
             <p className="text-muted-foreground">
               Track admin activities and system events
             </p>
           </div>
-          <Button onClick={loadAuditLogs} variant="outline">
+          <Button onClick={loadAuditLogs} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>

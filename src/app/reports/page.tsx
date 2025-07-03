@@ -121,7 +121,7 @@ function FinancialReportsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Financial Reports & Analytics</h1>
             <p className="text-gray-600">Comprehensive financial insights and performance metrics</p>
@@ -154,65 +154,65 @@ function FinancialReportsPage() {
         {/* Key Metrics Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(financialMetrics.totalRevenue)}</p>
+                  <p className="text-xs mdtext-sm text-gray-600">Total Revenue</p>
+                  <p className="text-sm md:text-xl font-bold">{formatCurrency(financialMetrics.totalRevenue)}</p>
                   <div className="flex items-center mt-1">
                     <ArrowUpRight className="w-3 h-3 text-green-600 mr-1" />
                     <span className="text-xs text-green-600">{formatPercentage(financialMetrics.revenueGrowth)}</span>
                   </div>
                 </div>
-                <DollarSign className="w-8 h-8 text-gray-400" />
+                <DollarSign className="w-5 h-5 md:w-8 md:h-8 text-gray-400" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Volume</p>
-                  <p className="text-2xl font-bold">{formatCurrency(financialMetrics.totalVolume)}</p>
+                  <p className="text-xs mdtext-sm text-gray-600">Total Volume</p>
+                  <p className="text-sm md:text-xl font-bold">{formatCurrency(financialMetrics.totalVolume)}</p>
                   <div className="flex items-center mt-1">
                     <ArrowUpRight className="w-3 h-3 text-green-600 mr-1" />
                     <span className="text-xs text-green-600">{formatPercentage(financialMetrics.volumeGrowth)}</span>
                   </div>
                 </div>
-                <TrendingUp className="w-8 h-8 text-gray-400" />
+                <TrendingUp className="w-5 h-5 md:w-8 md:h-8 text-gray-400" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Requests</p>
-                  <p className="text-2xl font-bold">{financialMetrics.totalRequests.toLocaleString()}</p>
+                  <p className="text-xs mdtext-sm text-gray-600">Total Requests</p>
+                  <p className="text-sm md:text-xl font-bold">{financialMetrics.totalRequests.toLocaleString()}</p>
                   <div className="flex items-center mt-1">
                     <ArrowUpRight className="w-3 h-3 text-green-600 mr-1" />
                     <span className="text-xs text-green-600">{formatPercentage(financialMetrics.customerGrowth)}</span>
                   </div>
                 </div>
-                <CreditCard className="w-8 h-8 text-gray-400" />
+                <CreditCard className="w-5 h-5 md:w-8 md:h-8 text-gray-400" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Conversion Rate</p>
-                  <p className="text-2xl font-bold">{financialMetrics.conversionRate}%</p>
+                  <p className="text-xs mdtext-sm text-gray-600">Conversion Rate</p>
+                  <p className="text-sm md:text-xl font-bold">{financialMetrics.conversionRate}%</p>
                   <div className="flex items-center mt-1">
                     <ArrowUpRight className="w-3 h-3 text-green-600 mr-1" />
                     <span className="text-xs text-green-600">+2.1%</span>
                   </div>
                 </div>
-                <BarChart3 className="w-8 h-8 text-gray-400" />
+                <BarChart3 className="w-5 h-5 md:w-8 md:h-8 text-gray-400" />
               </div>
             </CardContent>
           </Card>
@@ -220,12 +220,11 @@ function FinancialReportsPage() {
 
         {/* Detailed Analytics Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
-            <TabsTrigger value="trends">Trends</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -554,133 +553,6 @@ function FinancialReportsPage() {
                 <SimpleChart data={revenueData} type="bar" />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="trends" className="space-y-4">
-            {/* Monthly Trends */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Performance Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Month</th>
-                        <th className="text-right p-2">Revenue</th>
-                        <th className="text-right p-2">Volume</th>
-                        <th className="text-right p-2">Customers</th>
-                        <th className="text-right p-2">Growth</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {monthlyTrends.map((month, index) => {
-                        const prevMonth = monthlyTrends[index - 1]
-                        const growth = prevMonth ? ((month.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0
-                        return (
-                          <tr key={month.month} className="border-b">
-                            <td className="p-2 font-medium">{month.month}</td>
-                            <td className="text-right p-2">{formatCurrency(month.revenue)}</td>
-                            <td className="text-right p-2">{formatCurrency(month.volume)}</td>
-                            <td className="text-right p-2">{month.customers}</td>
-                            <td className="text-right p-2">
-                              {index > 0 && (
-                                <Badge
-                                  className={
-                                    growth > 0
-                                      ? "bg-green-100 text-green-800"
-                                      : growth < 0
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-gray-100 text-gray-800"
-                                  }
-                                >
-                                  {formatPercentage(growth)}
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Trend Analysis */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Key Performance Indicators</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-green-800">Revenue Growth</p>
-                        <p className="text-sm text-green-600">Month over month</p>
-                      </div>
-                      <div className="flex items-center">
-                        <ArrowUpRight className="w-4 h-4 text-green-600 mr-1" />
-                        <span className="font-bold text-green-800">
-                          {formatPercentage(financialMetrics.revenueGrowth)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-blue-800">Volume Growth</p>
-                        <p className="text-sm text-blue-600">Month over month</p>
-                      </div>
-                      <div className="flex items-center">
-                        <ArrowUpRight className="w-4 h-4 text-blue-600 mr-1" />
-                        <span className="font-bold text-blue-800">
-                          {formatPercentage(financialMetrics.volumeGrowth)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-purple-800">Customer Growth</p>
-                        <p className="text-sm text-purple-600">Month over month</p>
-                      </div>
-                      <div className="flex items-center">
-                        <ArrowUpRight className="w-4 h-4 text-purple-600 mr-1" />
-                        <span className="font-bold text-purple-800">
-                          {formatPercentage(financialMetrics.customerGrowth)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Forecasting</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-3 border rounded-lg">
-                      <p className="font-medium">Next Month Projection</p>
-                      <p className="text-2xl font-bold text-gray-800">{formatCurrency(135000)}</p>
-                      <p className="text-sm text-gray-600">Based on current growth rate</p>
-                    </div>
-                    <div className="p-3 border rounded-lg">
-                      <p className="font-medium">Quarterly Target</p>
-                      <p className="text-2xl font-bold text-gray-800">{formatCurrency(400000)}</p>
-                      <p className="text-sm text-gray-600">Q1 2024 goal</p>
-                    </div>
-                    <div className="p-3 border rounded-lg">
-                      <p className="font-medium">Annual Projection</p>
-                      <p className="text-2xl font-bold text-gray-800">{formatCurrency(1600000)}</p>
-                      <p className="text-sm text-gray-600">2024 forecast</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>

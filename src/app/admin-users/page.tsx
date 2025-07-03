@@ -326,7 +326,7 @@ function AdminUsersContent() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Admin Users</h1>
             <p className="text-muted-foreground">

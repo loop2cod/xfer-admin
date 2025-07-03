@@ -10,7 +10,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
-import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, ArrowUpRight, Loader2, RefreshCw } from "lucide-react"
+import { DollarSign, TrendingUp, Users, Clock, CheckCircle, AlertTriangle, ArrowUpRight, Loader2, RefreshCw, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useAuth } from "@/context/AuthContext"
@@ -271,7 +271,7 @@ function DashboardContent() {
                     onClick={() => router.push('/requests/pending')}
                     className="w-full gap-2 flex cursor-pointer"
                   >
-                    <Clock className="w-4 h-4 md:w-6 h-6" />
+                    <Clock className="w-4 h-4 md:w-6 md:h-6" />
                     <span className="text-xs md:text-sm">Process Pending</span>
                   </Button>
                 )}
@@ -280,7 +280,7 @@ function DashboardContent() {
                     onClick={() => router.push('/customers')}
                     className="w-full gap-2 flex cursor-pointer"
                   >
-                    <Users className="w-4 h-4 md:w-6 h-6" />
+                    <Users className="w-4 h-4 md:w-6 md:h-6" />
                     <span className="text-xs md:text-sm">Manage Customers</span>
                   </Button>
                 )}
@@ -289,17 +289,17 @@ function DashboardContent() {
                     onClick={() => router.push('/reports')}
                     className="w-full gap-2 flex cursor-pointer"
                   >
-                    <DollarSign className="w-4 h-4 md:w-6 h-6" />
+                    <DollarSign className="w-4 h-4 md:w-6 md:h-6" />
                     <span className="text-xs md:text-sm">Financial Reports</span>
                   </Button>
                 )}
                 {hasPermission('can_manage_system_settings') && (
                   <Button 
-                    onClick={() => router.push('/settings')}
+                    onClick={() => router.push('/audit')}
                     className="w-full gap-2 flex cursor-pointer"
                   >
-                    <TrendingUp className="w-4 h-4 md:w-6 h-6" />
-                    <span className="text-xs md:text-sm">System Settings</span>
+                    <FileText className="w-4 h-4 md:w-6 md:h-6" />
+                    <span className="text-xs md:text-sm">Audit logs</span>
                   </Button>
                 )}
             </div>

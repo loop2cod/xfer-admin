@@ -19,24 +19,11 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Search,
   Filter,
   Eye,
   RefreshCw,
   Download,
-  MoreHorizontal,
-  UserCheck,
-  UserX,
-  Mail,
-  Phone,
   Users,
   AlertTriangle,
 } from "lucide-react"
@@ -230,12 +217,12 @@ function CustomersPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Customer Management</h1>
             <p className="text-gray-600">Manage customer accounts and verification status</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center md:justify-end space-x-2">
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               Refresh

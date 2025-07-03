@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -378,899 +378,996 @@ export interface PaginatedTransfersResponse {
   has_prev: boolean;
 }
 
-class ApiClient {
-  private client: AxiosInstance;
-  private baseURL: string;
+// Token management utilities
+const getAccessToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('admin_access_token');
+  }
+  return null;
+};
 
-  constructor(baseURL?: string) {
-    // this.baseURL = 'https://server.letsnd.com/api/v1' || baseURL || process.env.NEXT_PUBLIC_API_URL;
-    this.baseURL = 'https://server.letsnd.com/api/v1'
-    
-    this.client = axios.create({
-      baseURL: this.baseURL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+const getRefreshToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('admin_refresh_token');
+  }
+  return null;
+};
 
-    // Request interceptor to add auth token
-    this.client.interceptors.request.use(
-      (config) => {
-        const token = this.getAccessToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
+const setTokens = (accessToken: string, refreshToken: string): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('admin_access_token', accessToken);
+    localStorage.setItem('admin_refresh_token', refreshToken);
+  }
+};
+
+const clearAuth = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('admin_access_token');
+    localStorage.removeItem('admin_refresh_token');
+    localStorage.removeItem('admin_profile');
+  }
+};
+
+// Create axios client with interceptors
+const createApiClient = (): AxiosInstance => {
+  const baseURL = 'https://server.letsnd.com/api/v1';
+
+  const client = axios.create({
+    baseURL,
+    timeout: 30000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  // Request interceptor to add auth token
+  client.interceptors.request.use(
+    (config) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
-    );
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
 
-    // Response interceptor to handle token refresh
-    this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
+  // Response interceptor to handle token refresh
+  client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
 
-          try {
-            const refreshToken = this.getRefreshToken();
-            if (refreshToken) {
-              const response = await this.refreshToken(refreshToken);
-              if (response.success && response.data) {
-                this.setTokens(response.data.access_token, response.data.refresh_token);
-                originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
-                return this.client(originalRequest);
-              }
+        try {
+          const refreshToken = getRefreshToken();
+          if (refreshToken) {
+            const response = await refreshTokenRequest(refreshToken);
+            if (response.success && response.data) {
+              setTokens(response.data.access_token, response.data.refresh_token);
+              originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
+              return client(originalRequest);
             }
-          } catch (refreshError) {
-            this.clearAuth();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
           }
+        } catch (refreshError) {
+          clearAuth();
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
         }
-
-        return Promise.reject(error);
       }
-    );
-  }
 
-  // Token management
-  private getAccessToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('admin_access_token');
+      return Promise.reject(error);
     }
-    return null;
-  }
+  );
 
-  private getRefreshToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('admin_refresh_token');
+  return client;
+};
+
+// Global client instance
+const client = createApiClient();
+
+// Helper function for refresh token request (used in interceptor)
+const refreshTokenRequest = async (refreshToken: string): Promise<ApiResponse<AdminTokenResponse>> => {
+  try {
+    const response = await axios.post<ApiResponse<AdminTokenResponse>>('/auth/admin/refresh', {
+      refresh_token: refreshToken
+    }, {
+      baseURL: 'https://server.letsnd.com/api/v1',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Token refresh failed'
+    };
+  }
+};
+
+// API Methods
+export const login = async (credentials: AdminLoginRequest): Promise<ApiResponse<AdminTokenResponse>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminTokenResponse>>('/auth/admin/login', credentials);
+
+    if (response.data.success && response.data.data) {
+      setTokens(response.data.data.access_token, response.data.data.refresh_token);
     }
-    return null;
-  }
 
-  private setTokens(accessToken: string, refreshToken: string): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('admin_access_token', accessToken);
-      localStorage.setItem('admin_refresh_token', refreshToken);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.detail || error.response?.data?.message || error.message || 'Login failed'
+    };
+  }
+};
+
+export const logout = async (): Promise<ApiResponse> => {
+  try {
+    const response = await client.post<ApiResponse>('/auth/admin/logout');
+    clearAuth();
+    return response.data;
+  } catch (error: any) {
+    clearAuth();
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Logout failed'
+    };
+  }
+};
+
+export const refreshToken = async (refreshToken: string): Promise<ApiResponse<AdminTokenResponse>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminTokenResponse>>('/auth/admin/refresh', {
+      refresh_token: refreshToken
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Token refresh failed'
+    };
+  }
+};
+
+export const getProfile = async (): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.get<ApiResponse<AdminProfile>>('/admin/me');
+
+    if (response.data.success && response.data.data && typeof window !== 'undefined') {
+      localStorage.setItem('admin_profile', JSON.stringify(response.data.data));
     }
-  }
 
-  private clearAuth(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('admin_access_token');
-      localStorage.removeItem('admin_refresh_token');
-      localStorage.removeItem('admin_profile');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get profile'
+    };
+  }
+};
+
+export const updateProfile = async (data: AdminUpdateRequest): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.put<ApiResponse<AdminProfile>>('/admin/me', data);
+
+    if (response.data.success && response.data.data && typeof window !== 'undefined') {
+      localStorage.setItem('admin_profile', JSON.stringify(response.data.data));
     }
-  }
 
-  // API Methods
-  async login(credentials: AdminLoginRequest): Promise<ApiResponse<AdminTokenResponse>> {
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update profile'
+    };
+  }
+};
+
+export const getDashboardStats = async (): Promise<ApiResponse<DashboardStats>> => {
+  try {
+    const response = await client.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get dashboard stats'
+    };
+  }
+};
+
+export const getAllAdmins = async (params?: {
+  skip?: number;
+  limit?: number;
+  role?: string;
+  is_active?: boolean;
+}): Promise<ApiResponse<AdminProfile[]>> => {
+  try {
+    const response = await client.get<ApiResponse<AdminProfile[]>>('/admin/all', { params });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get admins'
+    };
+  }
+};
+
+export const createAdmin = async (data: AdminCreateRequest): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminProfile>>('/admin/', data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to create admin'
+    };
+  }
+};
+
+export const updateAdmin = async (id: string, data: AdminUpdateRequest): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update admin'
+    };
+  }
+};
+
+export const updateAdminPermissions = async (id: string, permissions: Record<string, boolean>): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}/permissions`, { permissions });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update permissions'
+    };
+  }
+};
+
+export const toggleAdminStatus = async (id: string): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminProfile>>(`/admin/profile/${id}/toggle-status`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to toggle admin status'
+    };
+  }
+};
+
+export const deleteAdmin = async (id: string): Promise<ApiResponse> => {
+  try {
+    const response = await client.delete<ApiResponse>(`/admin/profile/${id}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to delete admin'
+    };
+  }
+};
+
+export const getRolePermissions = async (): Promise<ApiResponse<RolePermissions[]>> => {
+  try {
+    const response = await client.get<ApiResponse<RolePermissions[]>>('/admin/roles/permissions');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get role permissions'
+    };
+  }
+};
+
+export const generateApiKey = async (expiresDays: number = 90): Promise<ApiResponse<{ api_key: string; expires_at: string }>> => {
+  try {
+    const response = await client.post<ApiResponse<{ api_key: string; expires_at: string }>>(`/admin/api-key`, {
+      expires_days: expiresDays
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to generate API key'
+    };
+  }
+};
+
+export const revokeApiKey = async (): Promise<ApiResponse> => {
+  try {
+    const response = await client.delete<ApiResponse>('/admin/api-key');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to revoke API key'
+    };
+  }
+};
+
+// Admin Wallet Management
+export const getAdminWallets = async (): Promise<ApiResponse<AdminWallet[]>> => {
+  try {
+    const response = await client.get<ApiResponse<AdminWallet[]>>('/admin-wallets/');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get admin wallets'
+    };
+  }
+};
+
+export const createAdminWallet = async (data: AdminWalletCreateRequest): Promise<ApiResponse<AdminWallet>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminWallet>>('/admin-wallets/', data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to create admin wallet'
+    };
+  }
+};
+
+export const updateAdminWallet = async (id: string, data: AdminWalletUpdateRequest): Promise<ApiResponse<AdminWallet>> => {
+  try {
+    const response = await client.put<ApiResponse<AdminWallet>>(`/admin-wallets/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update admin wallet'
+    };
+  }
+};
+
+export const deleteAdminWallet = async (id: string): Promise<ApiResponse> => {
+  try {
+    const response = await client.delete<ApiResponse>(`/admin-wallets/${id}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to delete admin wallet'
+    };
+  }
+};
+
+export const setPrimaryAdminWallet = async (id: string): Promise<ApiResponse<AdminWallet>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminWallet>>('/admin-wallets/set-primary/', { wallet_id: id });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to set primary admin wallet'
+    };
+  }
+};
+
+export const toggleAdminWalletStatus = async (id: string): Promise<ApiResponse<AdminWallet>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminWallet>>(`/admin-wallets/${id}/toggle-status`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to toggle admin wallet status'
+    };
+  }
+};
+
+// Admin Bank Account Management
+export const getAdminBankAccounts = async (): Promise<ApiResponse<AdminBankAccount[]>> => {
+  try {
+    const response = await client.get<ApiResponse<AdminBankAccount[]>>('/admin-bank-accounts/');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get admin bank accounts'
+    };
+  }
+};
+
+export const createAdminBankAccount = async (data: AdminBankAccountCreateRequest): Promise<ApiResponse<AdminBankAccount>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminBankAccount>>('/admin-bank-accounts/', data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to create admin bank account'
+    };
+  }
+};
+
+export const updateAdminBankAccount = async (id: string, data: AdminBankAccountUpdateRequest): Promise<ApiResponse<AdminBankAccount>> => {
+  try {
+    const response = await client.put<ApiResponse<AdminBankAccount>>(`/admin-bank-accounts/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update admin bank account'
+    };
+  }
+};
+
+export const deleteAdminBankAccount = async (id: string): Promise<ApiResponse> => {
+  try {
+    const response = await client.delete<ApiResponse>(`/admin-bank-accounts/${id}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to delete admin bank account'
+    };
+  }
+};
+
+export const setPrimaryAdminBankAccount = async (id: string): Promise<ApiResponse<AdminBankAccount>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminBankAccount>>('/admin-bank-accounts/set-primary/', { account_id: id });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to set primary admin bank account'
+    };
+  }
+};
+
+export const toggleAdminBankAccountStatus = async (id: string): Promise<ApiResponse<AdminBankAccount>> => {
+  try {
+    const response = await client.post<ApiResponse<AdminBankAccount>>(`/admin-bank-accounts/${id}/toggle-status`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to toggle admin bank account status'
+    };
+  }
+};
+
+// Transfer Management
+export const getPendingCount = async (): Promise<ApiResponse<{ pending_count: number; timestamp: string }>> => {
+  try {
+    const response = await client.get<ApiResponse<{ pending_count: number; timestamp: string }>>('/transfers/admin/pending-count');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching pending count:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to fetch pending count'
+    };
+  }
+};
+
+export const getAllTransfers = async (params?: {
+  skip?: number;
+  limit?: number;
+  status?: string;
+  status_filter?: string;
+  type_filter?: string;
+  transfer_type?: string;
+  search?: string;
+}): Promise<ApiResponse<PaginatedTransfersResponse>> => {
+  try {
+    const cleanParams = {
+      skip: params?.skip || 0,
+      limit: params?.limit || 50,
+      ...(params?.status && { status_filter: params.status }),
+      ...(params?.status_filter && { status_filter: params.status_filter }),
+      ...(params?.type_filter && { type_filter: params.type_filter }),
+      ...(params?.transfer_type && { type_filter: params.transfer_type }),
+      ...(params?.search && { search: params.search }),
+    };
+
+    const response = await client.get<ApiResponse<PaginatedTransfersResponse>>('/transfers/admin/all', {
+      params: cleanParams
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get transfers'
+    };
+  }
+};
+
+export const getTransferById = async (id: string): Promise<ApiResponse<TransferRequest>> => {
+  try {
+    const response = await client.get<ApiResponse<TransferRequest>>(`/transfers/admin/${id}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get transfer'
+    };
+  }
+};
+
+export const updateTransfer = async (id: string, data: TransferUpdateRequest): Promise<ApiResponse<TransferRequest>> => {
+  try {
+    const response = await client.put<ApiResponse<TransferRequest>>(`/transfers/admin/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update transfer'
+    };
+  }
+};
+
+export const bulkUpdateTransferStatus = async (
+  transfer_ids: string[],
+  status: string,
+  status_message?: string
+): Promise<ApiResponse<any>> => {
+  try {
+    const response = await client.post<ApiResponse<any>>('/transfers/bulk-update-status', {
+      transfer_ids,
+      status,
+      status_message
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to bulk update transfers'
+    };
+  }
+};
+
+export const getTransferStats = async (): Promise<ApiResponse<TransferStats>> => {
+  try {
+    const response = await client.get<ApiResponse<TransferStats>>('/transfers/admin/stats');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get transfer stats'
+    };
+  }
+};
+
+// User Management
+export const getAllUsers = async (params?: UserFilters): Promise<ApiResponse<PaginatedUsersResponse>> => {
+  try {
+    const cleanParams = {
+      skip: params?.skip || 0,
+      limit: params?.limit || 50,
+      ...(params?.search && { search: params.search }),
+      ...(params?.kyc_status && { kyc_status: params.kyc_status }),
+      ...(params?.is_active !== undefined && { is_active: params.is_active }),
+    };
+
+    const response = await client.get<ApiResponse<PaginatedUsersResponse>>('/users/admin/all', {
+      params: cleanParams
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get users'
+    };
+  }
+};
+
+export const getUserById = async (id: string): Promise<ApiResponse<User>> => {
+  try {
+    const response = await client.get<ApiResponse<User>>(`/users/admin/${id}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get user'
+    };
+  }
+};
+
+export const updateUserStatus = async (id: string, is_active: boolean): Promise<ApiResponse<User>> => {
+  try {
+    const response = await client.put<ApiResponse<User>>(`/users/admin/${id}/status`, { is_active });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update user status'
+    };
+  }
+};
+
+export const updateUserKyc = async (id: string, kyc_status: string, notes?: string): Promise<ApiResponse<User>> => {
+  try {
+    const response = await client.put<ApiResponse<User>>(`/users/admin/${id}/kyc`, {
+      kyc_status,
+      notes
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update KYC status'
+    };
+  }
+};
+
+export const getUserTransfers = async (userId: string, params?: {
+  skip?: number;
+  limit?: number;
+  type_filter?: string;
+  status_filter?: string;
+}): Promise<ApiResponse<PaginatedTransfersResponse>> => {
+  try {
+    const response = await client.get<ApiResponse<PaginatedTransfersResponse>>(`/users/admin/${userId}/transfers`, { params });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get user transfers'
+    };
+  }
+};
+
+export const addUserNote = async (userId: string, note: string): Promise<ApiResponse<any>> => {
+  try {
+    const response = await client.post<ApiResponse<any>>(`/users/admin/${userId}/notes`, { note });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to add user note'
+    };
+  }
+};
+
+export const getUserNotes = async (userId: string): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await client.get<ApiResponse<any[]>>(`/users/admin/${userId}/notes`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get user notes'
+    };
+  }
+};
+
+// Audit Logs
+export const getAuditLogs = async (params?: {
+  skip?: number;
+  limit?: number;
+  admin_id?: string;
+  action?: string;
+  resource_type?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<ApiResponse<{ logs: AuditLog[]; total: number }>> => {
+  try {
+    const response = await client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin/audit-logs', {
+      params
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get audit logs'
+    };
+  }
+};
+
+export const getAuditStats = async (): Promise<ApiResponse<{
+  total_logs: number;
+  unique_admins: number;
+  actions_today: number;
+  most_common_action: string;
+}>> => {
+  try {
+    const response = await client.get<ApiResponse<{
+      total_logs: number;
+      unique_admins: number;
+      actions_today: number;
+      most_common_action: string;
+    }>>('/admin/audit-logs/stats');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get audit stats'
+    };
+  }
+};
+
+// Financial Reports
+export const getFinancialReport = async (params: {
+  start_date: string;
+  end_date: string;
+  group_by?: 'day' | 'week' | 'month';
+}): Promise<ApiResponse<FinancialReport>> => {
+  try {
+    const response = await client.get<ApiResponse<FinancialReport>>('/admin/reports/financial', {
+      params
+    });
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get financial report'
+    };
+  }
+};
+
+export const exportFinancialReport = async (params: {
+  start_date: string;
+  end_date: string;
+  format: 'csv' | 'xlsx';
+}): Promise<ApiResponse<{ download_url: string }>> => {
+  try {
+    const response = await client.post<ApiResponse<{ download_url: string }>>('/admin/reports/financial/export', params);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to export financial report'
+    };
+  }
+};
+
+// System Settings
+export const getSystemSettings = async (category?: string): Promise<ApiResponse<SystemSettings[]>> => {
+  try {
+    const params = category ? `?category=${encodeURIComponent(category)}` : '';
+    const response = await client.get<ApiResponse<SystemSettings[]>>(`/admin/settings${params}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get system settings'
+    };
+  }
+};
+
+export const getSystemSetting = async (key: string): Promise<ApiResponse<SystemSettings>> => {
+  try {
+    const response = await client.get<ApiResponse<SystemSettings>>(`/admin/settings/${encodeURIComponent(key)}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get system setting'
+    };
+  }
+};
+
+export const createSystemSetting = async (data: {
+  key: string;
+  value: any;
+  description?: string;
+  category: string;
+  is_public?: boolean;
+}): Promise<ApiResponse<SystemSettings>> => {
+  try {
+    const response = await client.post<ApiResponse<SystemSettings>>('/admin/settings', data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to create system setting'
+    };
+  }
+};
+
+export const updateSystemSetting = async (key: string, data: {
+  value?: any;
+  description?: string;
+  category?: string;
+  is_public?: boolean;
+}): Promise<ApiResponse<SystemSettings>> => {
+  try {
+    const response = await client.put<ApiResponse<SystemSettings>>(`/admin/settings/${encodeURIComponent(key)}`, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to update system setting'
+    };
+  }
+};
+
+export const deleteSystemSetting = async (key: string): Promise<ApiResponse<{ message: string }>> => {
+  try {
+    const response = await client.delete<ApiResponse<{ message: string }>>(`/admin/settings/${encodeURIComponent(key)}`);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to delete system setting'
+    };
+  }
+};
+
+export const getSettingCategories = async (): Promise<ApiResponse<string[]>> => {
+  try {
+    const response = await client.get<ApiResponse<string[]>>('/admin/settings/categories/list');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get setting categories'
+    };
+  }
+};
+
+export const bulkUpdateSettings = async (settings: Array<{ key: string; value: any }>): Promise<ApiResponse<SystemSettings[]>> => {
+  try {
+    const response = await client.post<ApiResponse<SystemSettings[]>>('/admin/settings/bulk-update', settings);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to bulk update settings'
+    };
+  }
+};
+
+// Enhanced error handling with retry logic
+export const retryRequest = async <T>(
+  requestFn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await this.client.post<ApiResponse<AdminTokenResponse>>('/auth/admin/login', credentials);
-      
-      if (response.data.success && response.data.data) {
-        this.setTokens(response.data.data.access_token, response.data.data.refresh_token);
+      return await requestFn();
+    } catch (error: any) {
+      lastError = error;
+
+      // Don't retry on authentication errors or client errors (4xx)
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        throw error;
       }
-      
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.response?.data?.message || error.message || 'Login failed'
-      };
-    }
-  }
 
-  async logout(): Promise<ApiResponse> {
-    try {
-      const response = await this.client.post<ApiResponse>('/auth/admin/logout');
-      this.clearAuth();
-      return response.data;
-    } catch (error: any) {
-      this.clearAuth();
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Logout failed'
-      };
-    }
-  }
-
-  async refreshToken(refreshToken: string): Promise<ApiResponse<AdminTokenResponse>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminTokenResponse>>('/auth/admin/refresh', {
-        refresh_token: refreshToken
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Token refresh failed'
-      };
-    }
-  }
-
-  async getProfile(): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.get<ApiResponse<AdminProfile>>('/admin/me');
-      
-      if (response.data.success && response.data.data && typeof window !== 'undefined') {
-        localStorage.setItem('admin_profile', JSON.stringify(response.data.data));
+      // Don't retry on the last attempt
+      if (attempt === maxRetries) {
+        throw error;
       }
-      
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get profile'
-      };
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
     }
   }
 
-  async updateProfile(data: AdminUpdateRequest): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.put<ApiResponse<AdminProfile>>('/admin/me', data);
-      
-      if (response.data.success && response.data.data && typeof window !== 'undefined') {
-        localStorage.setItem('admin_profile', JSON.stringify(response.data.data));
-      }
-      
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update profile'
-      };
-    }
+  throw lastError;
+};
+
+// Utility methods
+export const isAuthenticated = (): boolean => {
+  return !!getAccessToken();
+};
+
+export const getCachedProfile = (): AdminProfile | null => {
+  if (typeof window !== 'undefined') {
+    const profile = localStorage.getItem('admin_profile');
+    return profile ? JSON.parse(profile) : null;
   }
+  return null;
+};
 
-  async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    try {
-      const response = await this.client.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get dashboard stats'
-      };
-    }
+// Clear all cached data
+export const clearCache = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('admin_profile');
+    // Clear any other cached data
   }
+};
 
-  async getAllAdmins(params?: {
-    skip?: number;
-    limit?: number;
-    role?: string;
-    is_active?: boolean;
-  }): Promise<ApiResponse<AdminProfile[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<AdminProfile[]>>('/admin/all', { params });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get admins'
-      };
-    }
+// Get API health status
+export const getHealthStatus = async (): Promise<ApiResponse<{ status: string; timestamp: number }>> => {
+  try {
+    const response = await client.get<ApiResponse<{ status: string; timestamp: number }>>('/health');
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get health status'
+    };
   }
+};
 
-  async createAdmin(data: AdminCreateRequest): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminProfile>>('/admin/', data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to create admin'
-      };
-    }
-  }
+// Create an object with all API functions for backward compatibility
+export const apiClient = {
+  // Auth methods
+  login,
+  logout,
+  refreshToken,
+  getProfile,
+  updateProfile,
 
-  async updateAdmin(id: string, data: AdminUpdateRequest): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}`, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update admin'
-      };
-    }
-  }
+  // Dashboard
+  getDashboardStats,
 
-  async updateAdminPermissions(id: string, permissions: Record<string, boolean>): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.put<ApiResponse<AdminProfile>>(`/admin/profile/${id}/permissions`, { permissions });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update permissions'
-      };
-    }
-  }
+  // Admin management
+  getAllAdmins,
+  createAdmin,
+  updateAdmin,
+  updateAdminPermissions,
+  toggleAdminStatus,
+  deleteAdmin,
+  getRolePermissions,
+  generateApiKey,
+  revokeApiKey,
 
-  async toggleAdminStatus(id: string): Promise<ApiResponse<AdminProfile>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminProfile>>(`/admin/profile/${id}/toggle-status`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to toggle admin status'
-      };
-    }
-  }
+  // Wallet management
+  getAdminWallets,
+  createAdminWallet,
+  updateAdminWallet,
+  deleteAdminWallet,
+  setPrimaryAdminWallet,
+  toggleAdminWalletStatus,
 
-  async deleteAdmin(id: string): Promise<ApiResponse> {
-    try {
-      const response = await this.client.delete<ApiResponse>(`/admin/profile/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to delete admin'
-      };
-    }
-  }
+  // Bank account management
+  getAdminBankAccounts,
+  createAdminBankAccount,
+  updateAdminBankAccount,
+  deleteAdminBankAccount,
+  setPrimaryAdminBankAccount,
+  toggleAdminBankAccountStatus,
 
-  async getRolePermissions(): Promise<ApiResponse<RolePermissions[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<RolePermissions[]>>('/admin/roles/permissions');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get role permissions'
-      };
-    }
-  }
+  // Transfer management
+  getPendingCount,
+  getAllTransfers,
+  getTransferById,
+  updateTransfer,
+  bulkUpdateTransferStatus,
+  getTransferStats,
 
-  async generateApiKey(expiresDays: number = 90): Promise<ApiResponse<{ api_key: string; expires_at: string }>> {
-    try {
-      const response = await this.client.post<ApiResponse<{ api_key: string; expires_at: string }>>(`/admin/api-key`, {
-        expires_days: expiresDays
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to generate API key'
-      };
-    }
-  }
+  // User management
+  getAllUsers,
+  getUserById,
+  updateUserStatus,
+  updateUserKyc,
+  getUserTransfers,
+  addUserNote,
+  getUserNotes,
 
-  async revokeApiKey(): Promise<ApiResponse> {
-    try {
-      const response = await this.client.delete<ApiResponse>('/admin/api-key');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to revoke API key'
-      };
-    }
-  }
+  // Audit logs
+  getAuditLogs,
+  getAuditStats,
 
-  // Admin Wallet Management
-  async getAdminWallets(): Promise<ApiResponse<AdminWallet[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<AdminWallet[]>>('/admin-wallets');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get admin wallets'
-      };
-    }
-  }
+  // Financial reports
+  getFinancialReport,
+  exportFinancialReport,
 
-  async createAdminWallet(data: AdminWalletCreateRequest): Promise<ApiResponse<AdminWallet>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminWallet>>('/admin-wallets', data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to create admin wallet'
-      };
-    }
-  }
+  // System settings
+  getSystemSettings,
+  getSystemSetting,
+  createSystemSetting,
+  updateSystemSetting,
+  deleteSystemSetting,
+  getSettingCategories,
+  bulkUpdateSettings,
 
-  async updateAdminWallet(id: string, data: AdminWalletUpdateRequest): Promise<ApiResponse<AdminWallet>> {
-    try {
-      const response = await this.client.put<ApiResponse<AdminWallet>>(`/admin-wallets/${id}`, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update admin wallet'
-      };
-    }
-  }
+  // Utilities
+  isAuthenticated,
+  getCachedProfile,
+  clearCache,
+  getHealthStatus,
+  retryRequest
+};
 
-  async deleteAdminWallet(id: string): Promise<ApiResponse> {
-    try {
-      const response = await this.client.delete<ApiResponse>(`/admin-wallets/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to delete admin wallet'
-      };
-    }
-  }
-
-  async setPrimaryAdminWallet(id: string): Promise<ApiResponse<AdminWallet>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminWallet>>('/admin-wallets/set-primary', { wallet_id: id });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to set primary admin wallet'
-      };
-    }
-  }
-
-  async toggleAdminWalletStatus(id: string): Promise<ApiResponse<AdminWallet>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminWallet>>(`/admin-wallets/${id}/toggle-status`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to toggle admin wallet status'
-      };
-    }
-  }
-
-  // Admin Bank Account Management
-  async getAdminBankAccounts(): Promise<ApiResponse<AdminBankAccount[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<AdminBankAccount[]>>('/admin-bank-accounts');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get admin bank accounts'
-      };
-    }
-  }
-
-  async createAdminBankAccount(data: AdminBankAccountCreateRequest): Promise<ApiResponse<AdminBankAccount>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminBankAccount>>('/admin-bank-accounts', data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to create admin bank account'
-      };
-    }
-  }
-
-  async updateAdminBankAccount(id: string, data: AdminBankAccountUpdateRequest): Promise<ApiResponse<AdminBankAccount>> {
-    try {
-      const response = await this.client.put<ApiResponse<AdminBankAccount>>(`/admin-bank-accounts/${id}`, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update admin bank account'
-      };
-    }
-  }
-
-  async deleteAdminBankAccount(id: string): Promise<ApiResponse> {
-    try {
-      const response = await this.client.delete<ApiResponse>(`/admin-bank-accounts/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to delete admin bank account'
-      };
-    }
-  }
-
-  async setPrimaryAdminBankAccount(id: string): Promise<ApiResponse<AdminBankAccount>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminBankAccount>>('/admin-bank-accounts/set-primary', { account_id: id });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to set primary admin bank account'
-      };
-    }
-  }
-
-  async toggleAdminBankAccountStatus(id: string): Promise<ApiResponse<AdminBankAccount>> {
-    try {
-      const response = await this.client.post<ApiResponse<AdminBankAccount>>(`/admin-bank-accounts/${id}/toggle-status`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to toggle admin bank account status'
-      };
-    }
-  }
-
-  // Transfer Management
-  async getPendingCount(): Promise<ApiResponse<{ pending_count: number; timestamp: string }>> {
-    try {
-      const response = await this.client.get<ApiResponse<{ pending_count: number; timestamp: string }>>('/transfers/admin/pending-count')
-      return response.data
-    } catch (error: any) {
-      console.error('Error fetching pending count:', error)
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to fetch pending count'
-      }
-    }
-  }
-
-  async getAllTransfers(params?: {
-    skip?: number;
-    limit?: number;
-    status?: string;
-    status_filter?: string;
-    type_filter?: string;
-    transfer_type?: string;
-    search?: string;
-  }): Promise<ApiResponse<PaginatedTransfersResponse>> {
-    try {
-      const cleanParams = {
-        skip: params?.skip || 0,
-        limit: params?.limit || 50,
-        ...(params?.status && { status_filter: params.status }),
-        ...(params?.status_filter && { status_filter: params.status_filter }),
-        ...(params?.type_filter && { type_filter: params.type_filter }),
-        ...(params?.transfer_type && { type_filter: params.transfer_type }),
-        ...(params?.search && { search: params.search }),
-      };
-      
-      const response = await this.client.get<ApiResponse<PaginatedTransfersResponse>>('/transfers/admin/all', { 
-        params: cleanParams 
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get transfers'
-      };
-    }
-  }
-
-  async getTransferById(id: string): Promise<ApiResponse<TransferRequest>> {
-    try {
-      const response = await this.client.get<ApiResponse<TransferRequest>>(`/transfers/admin/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get transfer'
-      };
-    }
-  }
-
-  async updateTransfer(id: string, data: TransferUpdateRequest): Promise<ApiResponse<TransferRequest>> {
-    try {
-      const response = await this.client.put<ApiResponse<TransferRequest>>(`/transfers/admin/${id}`, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update transfer'
-      };
-    }
-  }
-
-  async bulkUpdateTransferStatus(
-    transfer_ids: string[],
-    status: string,
-    status_message?: string
-  ): Promise<ApiResponse<any>> {
-    try {
-      const response = await this.client.post<ApiResponse<any>>('/transfers/bulk-update-status', {
-        transfer_ids,
-        status,
-        status_message
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to bulk update transfers'
-      };
-    }
-  }
-
-  async getTransferStats(): Promise<ApiResponse<TransferStats>> {
-    try {
-      const response = await this.client.get<ApiResponse<TransferStats>>('/transfers/admin/stats');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get transfer stats'
-      };
-    }
-  }
-
-  // User Management
-  async getAllUsers(params?: UserFilters): Promise<ApiResponse<PaginatedUsersResponse>> {
-    try {
-      const cleanParams = {
-        skip: params?.skip || 0,
-        limit: params?.limit || 50,
-        ...(params?.search && { search: params.search }),
-        ...(params?.kyc_status && { kyc_status: params.kyc_status }),
-        ...(params?.is_active !== undefined && { is_active: params.is_active }),
-      };
-
-      const response = await this.client.get<ApiResponse<PaginatedUsersResponse>>('/users/admin/all', {
-        params: cleanParams
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get users'
-      };
-    }
-  }
-
-  async getUserById(id: string): Promise<ApiResponse<User>> {
-    try {
-      const response = await this.client.get<ApiResponse<User>>(`/users/admin/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get user'
-      };
-    }
-  }
-
-  async updateUserStatus(id: string, is_active: boolean): Promise<ApiResponse<User>> {
-    try {
-      const response = await this.client.put<ApiResponse<User>>(`/users/admin/${id}/status`, { is_active });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update user status'
-      };
-    }
-  }
-
-  async updateUserKyc(id: string, kyc_status: string, notes?: string): Promise<ApiResponse<User>> {
-    try {
-      const response = await this.client.put<ApiResponse<User>>(`/users/admin/${id}/kyc`, {
-        kyc_status,
-        notes
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update KYC status'
-      };
-    }
-  }
-
-  async getUserTransfers(userId: string, params?: {
-    skip?: number;
-    limit?: number;
-    type_filter?: string;
-    status_filter?: string;
-  }): Promise<ApiResponse<PaginatedTransfersResponse>> {
-    try {
-      const response = await this.client.get<ApiResponse<PaginatedTransfersResponse>>(`/users/admin/${userId}/transfers`, { params });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get user transfers'
-      };
-    }
-  }
-
-  async addUserNote(userId: string, note: string): Promise<ApiResponse<any>> {
-    try {
-      const response = await this.client.post<ApiResponse<any>>(`/users/admin/${userId}/notes`, { note });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to add user note'
-      };
-    }
-  }
-
-  async getUserNotes(userId: string): Promise<ApiResponse<any[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<any[]>>(`/users/admin/${userId}/notes`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get user notes'
-      };
-    }
-  }
-
-  // Audit Logs
-  async getAuditLogs(params?: {
-    skip?: number;
-    limit?: number;
-    admin_id?: string;
-    action?: string;
-    resource_type?: string;
-    start_date?: string;
-    end_date?: string;
-  }): Promise<ApiResponse<{ logs: AuditLog[]; total: number }>> {
-    try {
-      const response = await this.client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin/audit-logs', {
-        params
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get audit logs'
-      };
-    }
-  }
-
-  async getAuditStats(): Promise<ApiResponse<{
-    total_logs: number;
-    unique_admins: number;
-    actions_today: number;
-    most_common_action: string;
-  }>> {
-    try {
-      const response = await this.client.get<ApiResponse<{
-        total_logs: number;
-        unique_admins: number;
-        actions_today: number;
-        most_common_action: string;
-      }>>('/admin/audit-logs/stats');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get audit stats'
-      };
-    }
-  }
-
-  // Financial Reports
-  async getFinancialReport(params: {
-    start_date: string;
-    end_date: string;
-    group_by?: 'day' | 'week' | 'month';
-  }): Promise<ApiResponse<FinancialReport>> {
-    try {
-      const response = await this.client.get<ApiResponse<FinancialReport>>('/admin/reports/financial', {
-        params
-      });
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get financial report'
-      };
-    }
-  }
-
-  async exportFinancialReport(params: {
-    start_date: string;
-    end_date: string;
-    format: 'csv' | 'xlsx';
-  }): Promise<ApiResponse<{ download_url: string }>> {
-    try {
-      const response = await this.client.post<ApiResponse<{ download_url: string }>>('/admin/reports/financial/export', params);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to export financial report'
-      };
-    }
-  }
-
-  // System Settings
-  async getSystemSettings(category?: string): Promise<ApiResponse<SystemSettings[]>> {
-    try {
-      const params = category ? `?category=${encodeURIComponent(category)}` : '';
-      const response = await this.client.get<ApiResponse<SystemSettings[]>>(`/admin/settings${params}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get system settings'
-      };
-    }
-  }
-
-  async getSystemSetting(key: string): Promise<ApiResponse<SystemSettings>> {
-    try {
-      const response = await this.client.get<ApiResponse<SystemSettings>>(`/admin/settings/${encodeURIComponent(key)}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get system setting'
-      };
-    }
-  }
-
-  async createSystemSetting(data: {
-    key: string;
-    value: any;
-    description?: string;
-    category: string;
-    is_public?: boolean;
-  }): Promise<ApiResponse<SystemSettings>> {
-    try {
-      const response = await this.client.post<ApiResponse<SystemSettings>>('/admin/settings', data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to create system setting'
-      };
-    }
-  }
-
-  async updateSystemSetting(key: string, data: {
-    value?: any;
-    description?: string;
-    category?: string;
-    is_public?: boolean;
-  }): Promise<ApiResponse<SystemSettings>> {
-    try {
-      const response = await this.client.put<ApiResponse<SystemSettings>>(`/admin/settings/${encodeURIComponent(key)}`, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update system setting'
-      };
-    }
-  }
-
-  async deleteSystemSetting(key: string): Promise<ApiResponse<{ message: string }>> {
-    try {
-      const response = await this.client.delete<ApiResponse<{ message: string }>>(`/admin/settings/${encodeURIComponent(key)}`);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to delete system setting'
-      };
-    }
-  }
-
-  async getSettingCategories(): Promise<ApiResponse<string[]>> {
-    try {
-      const response = await this.client.get<ApiResponse<string[]>>('/admin/settings/categories/list');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get setting categories'
-      };
-    }
-  }
-
-  async bulkUpdateSettings(settings: Array<{ key: string; value: any }>): Promise<ApiResponse<SystemSettings[]>> {
-    try {
-      const response = await this.client.post<ApiResponse<SystemSettings[]>>('/admin/settings/bulk-update', settings);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to bulk update settings'
-      };
-    }
-  }
-
-  // Enhanced error handling with retry logic
-  private async retryRequest<T>(
-    requestFn: () => Promise<T>,
-    maxRetries: number = 3,
-    delay: number = 1000
-  ): Promise<T> {
-    let lastError: any;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await requestFn();
-      } catch (error: any) {
-        lastError = error;
-
-        // Don't retry on authentication errors or client errors (4xx)
-        if (error.response?.status >= 400 && error.response?.status < 500) {
-          throw error;
-        }
-
-        // Don't retry on the last attempt
-        if (attempt === maxRetries) {
-          throw error;
-        }
-
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
-      }
-    }
-
-    throw lastError;
-  }
-
-  // Utility methods
-  isAuthenticated(): boolean {
-    return !!this.getAccessToken();
-  }
-
-  getCachedProfile(): AdminProfile | null {
-    if (typeof window !== 'undefined') {
-      const profile = localStorage.getItem('admin_profile');
-      return profile ? JSON.parse(profile) : null;
-    }
-    return null;
-  }
-
-  // Clear all cached data
-  clearCache(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('admin_profile');
-      // Clear any other cached data
-    }
-  }
-
-  // Get API health status
-  async getHealthStatus(): Promise<ApiResponse<{ status: string; timestamp: number }>> {
-    try {
-      const response = await this.client.get<ApiResponse<{ status: string; timestamp: number }>>('/health');
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to get health status'
-      };
-    }
-  }
-}
-
-// Export singleton instance
-export const apiClient = new ApiClient();
 export default apiClient;

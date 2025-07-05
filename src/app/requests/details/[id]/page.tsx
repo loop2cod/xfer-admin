@@ -46,11 +46,14 @@ import {
   Edit,
   History,
   Pause,
+  Scroll,
+  Download,
 } from "lucide-react"
 import { useParams } from "next/navigation"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { useAdminTransfer } from "@/context/AdminTransferContext"
 import { TransferRequest, StatusHistoryEntry } from "@/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 function AdminRequestDetailsPage() {
   const params = useParams()
@@ -78,6 +81,38 @@ function AdminRequestDetailsPage() {
     navigator.clipboard.writeText(text)
     setCopied(type)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  const downloadBankDetailsExcel = () => {
+    if (!request?.bank_accounts || request.bank_accounts.length === 0) {
+      return
+    }
+
+    // Create CSV content with the specified headers
+    const headers = "Account Holder Name,Account Number,Bank Name,Routing Number,Transfer Amount"
+    const rows = request.bank_accounts.map((account: any) => {
+      return [
+        account.account_name || "N/A",
+        account.account_number || "N/A",
+        account.bank_name || "N/A",
+        account.routing_number || "N/A",
+        account.transfer_amount || "N/A"
+      ].join(',')
+    })
+
+    const csvContent = [headers, ...rows].join('\n')
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `bank_details_${request.transfer_id}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const handleStatusUpdate = async () => {
@@ -486,14 +521,26 @@ function AdminRequestDetailsPage() {
     {request.transfer_type === "crypto-to-fiat" && request.bank_accounts && request.bank_accounts.length > 0 && (
       <Card className="">
         <CardHeader>
-          <CardTitle className="flex items-center text-sm sm:text-base">
-            <Building className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-            Bank Account Details
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center text-sm sm:text-base">
+              <Building className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              Bank Account Details
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadBankDetailsExcel}
+              className="text-xs sm:text-sm"
+            >
+              <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              Download Excel
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
+          <ScrollArea className="max-h-86 overflow-y-auto">
           {request.bank_accounts.map((account: any, index: number) => (
-            <div key={index} className="border rounded-lg p-3 sm:p-4">
+            <div key={index} className="border p-3 sm:p-4">
               <h4 className="font-medium text-sm sm:text-base mb-2">
                 Bank Account {index + 1}
               </h4>
@@ -531,6 +578,7 @@ function AdminRequestDetailsPage() {
               </div>
             </div>
           ))}
+          </ScrollArea>
         </CardContent>
       </Card>
     )}
@@ -605,6 +653,7 @@ function AdminRequestDetailsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+             <ScrollArea className="max-h-86 overflow-y-auto">
           <div className="space-y-3">
             {request.status_history
               .slice()
@@ -644,6 +693,7 @@ function AdminRequestDetailsPage() {
               </div>
             ))}
           </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     )}

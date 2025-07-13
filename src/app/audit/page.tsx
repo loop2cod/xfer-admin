@@ -49,7 +49,7 @@ function AuditPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const itemsPerPage = 20
+  const itemsPerPage = 10
 
   useEffect(() => {
     loadAuditLogs()

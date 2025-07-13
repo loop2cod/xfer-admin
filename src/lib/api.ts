@@ -1057,7 +1057,7 @@ export const getAuditLogs = async (params?: {
   end_date?: string;
 }): Promise<ApiResponse<{ logs: AuditLog[]; total: number }>> => {
   try {
-    const response = await client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin-audit-logs', {
+    const response = await client.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin-audit-logs/', {
       params
     });
     return response.data;
